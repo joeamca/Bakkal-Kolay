@@ -10,7 +10,8 @@
     { id: "bayram", ad: "Bayram", alt: "Açığız ya da kapalıyız", emoji: "🎉" },
     { id: "acik", ad: "Açık / Kapalı", alt: "Bugün durumumuz", emoji: "🏪" },
     { id: "gunaydin", ad: "Günaydın", alt: "Mahalleye merhaba", emoji: "🌞" },
-    { id: "kampanya", ad: "Kampanya", alt: "Ürüne özel fiyat", emoji: "🏷️" }
+    { id: "kampanya", ad: "Kampanya", alt: "Ürüne özel fiyat", emoji: "🏷️" },
+    { id: "ozel", ad: "Kendin Anlat", alt: "Yaz, hazırlansın", emoji: "✨" }
   ];
   const THEMES = [
     { ad: "Mavi", a: "#1e40af", b: "#60a5fa", ink: "#14306e" },
@@ -100,8 +101,12 @@
   const sub = (s, c) => String(s).replace(/\{(\w+)\}/g, (_, k) => (c[k] != null && c[k] !== "" ? c[k] : "…"));
   const key = (type, c) => type === "bayram" ? (c.durum === "kapali" ? "bayram_kapali" : "bayram_acik")
     : type === "acik" ? (c.durum === "kapali" ? "acik_kapali" : "acik_acik") : type;
-  const variants = (type, c) => (BANK[key(type, c || {})] || []).length;
+  const variants = (type, c) => type === "ozel" ? 1 : (BANK[key(type, c || {})] || []).length;
   function text(type, v, c) {
+    if (type === "ozel") { // sunucuda hazırlanan yazı (c.ai: {title, body, emoji})
+      const a = (c && c.ai) || {}, title = a.title || "Duyuru", body = a.body || "";
+      return { title: title, body: body, emoji: a.emoji || "📣", share: title + (body ? "\n" + body : "") + "\n— " + ((c && c.dukkan) || "Mahalle Bakkalı") };
+    }
     const list = BANK[key(type, c)] || BANK.gunaydin, t = list[((v % list.length) + list.length) % list.length];
     const title = sub(t[0], c), body = sub(t[1], c);
     return { title: title, body: body, emoji: t[2], share: title + "\n" + body + "\n— " + (c.dukkan || "Mahalle Bakkalı") };
@@ -200,7 +205,7 @@
   }
   const cache = {};
   function dataUrl(type, v, themeIdx, c) {
-    const k = [type, v, themeIdx, c.dukkan, c.urun, c.fiyat, c.saat, c.bayram, c.durum].join("|");
+    const k = [type, v, themeIdx, c.dukkan, c.urun, c.fiyat, c.saat, c.bayram, c.durum, c.ai && c.ai.title, c.ai && c.ai.body, c.ai && c.ai.emoji].join("|");
     if (!cache[k]) { const keys = Object.keys(cache); if (keys.length > 12) delete cache[keys[0]]; cache[k] = draw(type, v, themeIdx, c).toDataURL("image/jpeg", 0.88); }
     return cache[k];
   }

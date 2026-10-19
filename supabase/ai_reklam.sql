@@ -1,0 +1,34 @@
+-- Kendin Anlat (yapay zekâ ile duyuru): iş kuyruğu ve limitler. Canlı veritabanında uygulandı.
+-- Yazma sadece sunucu fonksiyonundan (service role) yapılır; uygulama sadece kendi dükkânının işlerini okur.
+-- Limit kaydı yoksa varsayılan: günde 3, ayda 20 üretim. Değiştirmek için:
+--   insert into ai_limits (shop_id, daily, monthly) values ('<dükkân id>', 10, 100)
+--   on conflict (shop_id) do update set daily = excluded.daily, monthly = excluded.monthly;
+-- Kapatmak için: ... values ('<dükkân id>', ...) ve enabled = false.
+
+create table if not exists public.ai_limits (
+  shop_id uuid primary key references public.shops(id) on delete cascade,
+  enabled boolean not null default true,
+  daily int not null default 3,
+  monthly int not null default 20
+);
+create table if not exists public.ai_jobs (
+  id uuid primary key default gen_random_uuid(),
+  shop_id uuid not null references public.shops(id) on delete cascade,
+  user_id uuid not null,
+  prompt text not null,
+  status text not null default 'bekliyor' check (status in ('bekliyor','calisiyor','bitti','hata')),
+  mode text,
+  steps jsonb not null default '[]'::jsonb,
+  result jsonb,
+  error text,
+  created_at timestamptz not null default now(),
+  finished_at timestamptz
+);
+create index if not exists ai_jobs_shop_at on public.ai_jobs (shop_id, created_at desc);
+alter table public.ai_limits enable row level security;
+alter table public.ai_jobs enable row level security;
+revoke all on public.ai_limits, public.ai_jobs from anon, authenticated;
+grant select on public.ai_jobs to authenticated;
+create policy ai_jobs_read on public.ai_jobs for select to authenticated using (is_owner(shop_id) or is_admin());
+-- ai_begin(p_uid, p_shop, p_prompt): sahip kontrolü + günlük/aylık limit + tek eşzamanlı iş; sadece service role çağırır.
+-- (Gövdesi canlı veritabanında; supabase/functions/reklam/index.ts bu fonksiyonu çağırır.)

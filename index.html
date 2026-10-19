@@ -5565,12 +5565,12 @@ function dyLoad(){
 }
 function dyState(){
   if (!S.dy){ let sv = {}; try { sv = JSON.parse(localStorage.getItem("kolay-dy")||"{}"); } catch(_){}
-    S.dy = {type:null, v:0, theme:sv.theme||0, saat:sv.saat||"08:00 - 22:00", durum:"acik", bayram:sv.bayram||"Bayramınız", urun:"", fiyat:""}; }
+    S.dy = {type:null, v:0, theme:sv.theme||0, saat:sv.saat||"08:00 - 22:00", durum:"acik", bayram:sv.bayram||"Bayramınız", urun:"", fiyat:"", aiPrompt:"", ai:null, aiBusy:false, aiErr:""}; }
   return S.dy;
 }
 function dyCtx(){
   const d = dyState(), p = S.products.find(x=>x.id===d.urun);
-  return {dukkan: shopTitle() || "Mahalle Bakkalı", urun: p ? p.name : "", fiyat: d.fiyat || (p && p.salePrice!=null ? String(p.salePrice).replace(".",",") : ""), saat: d.saat, durum: d.durum, bayram: d.bayram};
+  return {dukkan: shopTitle() || "Mahalle Bakkalı", urun: p ? p.name : "", fiyat: d.fiyat || (p && p.salePrice!=null ? String(p.salePrice).replace(".",",") : ""), saat: d.saat, durum: d.durum, bayram: d.bayram, ai: d.ai};
 }
 function dyImg(){
   const d = dyState(); if (!window.Duyuru || !d.type) return "";
@@ -5584,7 +5584,15 @@ function kDuyuru(){
   if (!window.Duyuru) return noticeHtml() + head + `<p class="muted" style="text-align:center;padding:30px">Yükleniyor…</p>`;
   if (!d.type){
     return noticeHtml() + head + `<h2 style="margin:6px 0 4px">Ne duyuralım?</h2><p class="muted small" style="margin:0 0 12px">Birini seç; hazır yazıyla kart çıkar, sen sadece gönder.</p><div class="kgrid">${
-      Duyuru.TYPES.map((x,i)=>`<button class="ktile c${[1,6,2,4,2,3][i]}" data-act="dyType" data-id="${x.id}"><span class="bi c${[1,6,2,4,2,3][i]}" style="font-size:28px;line-height:1">${x.emoji}</span><b>${x.ad}</b><span>${x.alt}</span></button>`).join("")}</div>`;
+      Duyuru.TYPES.map((x,i)=>`<button class="ktile c${[1,6,2,4,2,3,5][i]}" data-act="dyType" data-id="${x.id}"><span class="bi c${[1,6,2,4,2,3,5][i]}" style="font-size:28px;line-height:1">${x.emoji}</span><b>${x.ad}</b><span>${x.alt}</span></button>`).join("")}</div>`;
+  }
+  if (d.type==="ozel" && !d.ai){
+    return noticeHtml() + `<button class="link back" type="button" data-act="dyBack">${ic("back",18)} Duyuru Seç</button>
+      <h2 style="margin:6px 0 4px">Ne duyurmak istiyorsun?</h2>
+      <p class="muted small" style="margin:0 0 10px">Kendi cümlelerinle yaz, sunucu duyuru yazısını hazırlasın. Örnek: “Yarın sabah taze simit var, tanesi 10 TL.”</p>
+      <textarea id="dy-ai" rows="4" maxlength="500" placeholder="Duyurulacak şeyi yaz…" style="width:100%;font-size:18px" ${d.aiBusy?"disabled":""}>${esc(d.aiPrompt||"")}</textarea>
+      ${d.aiErr ? `<div class="notice bad" style="margin-top:8px">${esc(d.aiErr)}</div>` : ""}
+      <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>`;
   }
   const c = dyCtx(), needP = d.type==="stok" || d.type==="kampanya";
   const prods = S.products.slice().sort((a,b)=>a.name.localeCompare(b.name,"tr"));
@@ -5598,20 +5606,41 @@ function kDuyuru(){
       ${field((d.type==="bayram"||d.type==="acik") && d.durum==="acik", `<label>Saat<input id="dy-saat" value="${esc(d.saat)}" placeholder="08:00 - 22:00"></label>`)}
       ${field(d.type==="bayram", `<label>Bayram adı<input id="dy-bay" value="${esc(d.bayram)}" placeholder="Kurban Bayramınız"></label>`)}
     </div>
-    <div class="dyrow"><button type="button" data-act="dyNext">${ic("search",20)} Başka Yazı</button><button type="button" data-act="dyTheme">${ic("tag",20)} Başka Renk</button></div>
+    ${d.type==="ozel" && d.ai && d.ai.mode==="taslak" ? `<p class="muted small" style="text-align:center">Yapay zekâ henüz açık değil; yazdığın cümleden taslak hazırlandı.</p>` : ""}
+    <div class="dyrow">${d.type==="ozel" ? `<button type="button" data-act="dyAiReset">${ic("search",20)} Yeniden Yaz</button>` : `<button type="button" data-act="dyNext">${ic("search",20)} Başka Yazı</button>`}<button type="button" data-act="dyTheme">${ic("tag",20)} Başka Renk</button></div>
     <button class="primary dybig" type="button" data-act="dySend">${ic("mega",24)} Gönder</button>
     <button class="dycopy" type="button" data-act="dyCopy">Sadece yazıyı kopyala</button>
     <p class="muted small" style="text-align:center">“Gönder”e basınca WhatsApp, Instagram gibi uygulamalar çıkar; hangisini istersen onu seç.</p>`;
 }
 function dyUpd(){ const im = document.getElementById("dy-img"); if (im) im.src = dyImg(); }
 document.addEventListener("input", ev=>{ const id = ev.target.id, d = S.dy; if (!d) return;
+  if (id==="dy-ai"){ d.aiPrompt = ev.target.value; return; }
   if (id==="dy-price"){ d.fiyat = ev.target.value; dyUpd(); }
   else if (id==="dy-saat"){ d.saat = ev.target.value; dySave(); dyUpd(); }
   else if (id==="dy-bay"){ d.bayram = ev.target.value; dySave(); dyUpd(); } });
 document.addEventListener("change", ev=>{ if (ev.target.id==="dy-prod" && S.dy){ S.dy.urun = ev.target.value; S.dy.fiyat = ""; render(true); } });
 async function dyAct(a, t){
   const d = dyState();
-  if (a==="dyType"){ d.type = t.dataset.id; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); return true; }
+  if (a==="dyAiReset"){ d.ai = null; d.aiErr = ""; render(); return true; }
+  if (a==="dyAi"){
+    const p = (d.aiPrompt||"").trim();
+    if (p.length < 3){ d.aiErr = "Ne duyurmak istediğini biraz yaz."; render(true); return true; }
+    if (S.mode!=="cloud" || !S.cloud?.shop){ d.aiErr = "Bunun için hesabınla giriş yapman gerekir."; render(true); return true; }
+    d.aiBusy = true; d.aiErr = ""; render(true);
+    try{
+      const {data, error} = await SB.functions.invoke("reklam", {body:{shop_id:S.cloud.shop.id, prompt:p}});
+      if (error){ let m = ""; try{ const j = await error.context?.json?.(); m = j?.error || ""; }catch(_){} throw new Error(m || "Olmadı. İnternetini kontrol et."); }
+      const id = data?.job_id; if (!id) throw new Error("Olmadı. Tekrar dene.");
+      for (let i = 0; i < 45 && !d.ai; i++){
+        await new Promise(r=>setTimeout(r, 2000));
+        const {data:j} = await SB.from("ai_jobs").select("status,result,error").eq("id", id).maybeSingle();
+        if (j?.status==="bitti") d.ai = j.result;
+        else if (j?.status==="hata") throw new Error(j.error || "Hazırlanamadı.");
+      }
+      if (!d.ai) throw new Error("Biraz uzun sürdü. Tekrar dene.");
+    }catch(e){ d.aiErr = String(e.message || e); }
+    d.aiBusy = false; render(true); return true; }
+  if (a==="dyType"){ d.type = t.dataset.id; d.ai = null; d.aiErr = ""; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); return true; }
   if (a==="dyBack"){ d.type = null; render(); window.scrollTo(0,0); return true; }
   if (a==="dyNext"){ d.v++; dyUpd(); return true; }
   if (a==="dyTheme"){ d.theme = (d.theme+1) % Duyuru.THEMES.length; dySave(); dyUpd(); return true; }
