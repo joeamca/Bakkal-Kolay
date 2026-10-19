@@ -43,3 +43,10 @@ grant execute on function public.ai_begin(uuid, uuid, text) to service_role;
 -- Edge function tablolara service_role ile erişir; yetki açıkça verilmeli:
 grant select, insert, update on public.ai_jobs to service_role;
 grant select on public.ai_limits to service_role;
+
+-- Sesli komut (asistan fonksiyonu): dükkân üyesi (sahip/çırak) için dükkân başına günde 150 çağrı.
+-- ai_calls tablosu + ai_call_begin(p_uid, p_shop, p_kind 'sat'|'urun'); sadece service_role çağırır.
+-- create table public.ai_calls (id bigserial primary key, shop_id uuid not null references public.shops(id) on delete cascade,
+--   user_id uuid not null, kind text not null, created_at timestamptz not null default now());
+-- grant select, insert on public.ai_calls to service_role; grant usage, select on sequence public.ai_calls_id_seq to service_role;
+-- (ai_call_begin gövdesi canlı veritabanında; üyelik + günlük sayım kontrolü yapar.)

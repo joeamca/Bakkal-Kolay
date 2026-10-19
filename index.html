@@ -593,6 +593,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dyrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.dyrow button{min-height:54px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
 .dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
 .dyold{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin:0 0 8px;min-height:60px}.dyold .dyoe{font-size:28px}.dyold b{display:block}.dyold small{color:var(--muted)}
+.vbox{background:var(--accent-soft);border-radius:12px;padding:10px;margin:8px 0}.vmic{min-width:48px;font-size:22px}.vmic.rec{background:#c62828;color:#fff;animation:vpulse 1s infinite}@keyframes vpulse{50%{opacity:.6}}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
 .dyseg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dyseg button{min-height:54px;font-size:18px;font-weight:800}.dyseg button.on{background:var(--c1);color:#fff}
@@ -1682,6 +1683,7 @@ function viewProducts(){
     const comps = stockP().filter(x=>x.id!==S.editId).sort((a,b)=>a.name.localeCompare(b.name,"tr"));
     html += `<form id="pform" class="card stack">
       <h2>${p?"Ürünü düzenle":"Yeni ürün"}</h2>
+      ${p ? "" : voiceBox("urun", "Örn. Ülker çikolata, satış 25, alış 20, stok 10, barkod 8 6 9 0…")}
       <label>Ürün adı<input id="f-name" required maxlength="80" value="${esc(v.name)}" placeholder="${S.formMade?"Örn. Kaşarlı tost":"Örn. Pınar süt 1 L"}"></label>
       ${p ? "" : `<div id="pdup-box"></div>`}
       <label class="check"><input id="f-made" type="checkbox" ${S.formMade?"checked":""}> Dükkânda hazırladığım ürün (tost, sandviç gibi: reçetesi var)</label>
@@ -4026,6 +4028,86 @@ function camScan(target){
   document.head.appendChild(s);
 }
 function posFocus(){ setTimeout(()=>{ if (S.posEditK) return; const a = document.activeElement; if (a && a!==document.body && a.id!=="pos-scan" && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) return; document.getElementById("pos-scan")?.focus(); }, 0); }
+/* ---- Sesli komut (KAN-8): konuş ya da yaz; yapay zekâ taslak çıkarır, kaydı kullanıcı onaylar ---- */
+const SpeechR = window.SpeechRecognition || window.webkitSpeechRecognition;
+let voiceRec = null;
+function voiceStop(){ try{ voiceRec && voiceRec.stop(); }catch(_){} voiceRec = null; }
+function voiceMic(inputId, btn){
+  if (!SpeechR) return;
+  if (voiceRec){ voiceStop(); return; }
+  const el = document.getElementById(inputId); if (!el) return;
+  const rec = new SpeechR(); rec.lang = "tr-TR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
+  const base = el.value.trim(), done = () => { voiceRec = null; if (btn) btn.classList.remove("rec"); };
+  rec.onresult = e => { let t = ""; for (const r of e.results) t += r[0].transcript; el.value = (base ? base + " " : "") + t; };
+  rec.onend = done;
+  rec.onerror = e => { done(); const m = document.getElementById("v-msg"); if (m) m.textContent = e.error==="not-allowed" ? "Mikrofon izni verilmedi. Klavyedeki mikrofon düğmesini kullanabilirsin." : "Ses alınamadı. Tekrar dene ya da yaz."; };
+  voiceRec = rec; if (btn) btn.classList.add("rec");
+  try{ rec.start(); }catch(_){ done(); }
+}
+const voiceBox = (m, ph) => `<div class="vbox"><div class="row nowrap"><input id="v-text" autocomplete="off" enterkeyhint="send" maxlength="400" placeholder="${esc(ph)}" aria-label="Söyle ya da yaz" style="flex:1">${SpeechR ? `<button type="button" class="vmic" data-act="vMic" aria-label="Konuş">🎤</button>` : ""}<button type="button" class="primary" data-act="vSend" data-m="${m}">Gönder</button>${m==="sat" ? `<button type="button" class="link" data-act="vClose" aria-label="Kapat">×</button>` : ""}</div><p id="v-msg" class="small muted" style="margin:6px 0 0">${SpeechR ? "Mikrofona bas ve söyle; ya da klavyedeki mikrofonu kullan." : "Klavyedeki mikrofon düğmesiyle söyleyebilir ya da yazabilirsin."}</p></div>`;
+function eanOk(c){ if (!/^(\d{8}|\d{12,14})$/.test(c)) return false; const d = c.split("").map(Number), chk = d.pop(); let t = 0; d.reverse().forEach((x,i)=>{ t += x*(i%2===0 ? 3 : 1); }); return (10 - t%10)%10 === chk; }
+async function voiceSend(m){
+  const el = document.getElementById("v-text"), msg = document.getElementById("v-msg"), btn = document.querySelector('[data-act="vSend"]');
+  const say = x => { if (msg) msg.textContent = x; };
+  const text = (el?.value||"").trim(); if (text.length < 2) return say("Bir şey söyle ya da yaz.");
+  if (S.mode!=="cloud" || !S.cloud?.shop) return say("Sesli komut için hesabınla giriş yapman gerekir.");
+  voiceStop(); if (btn){ btn.disabled = true; btn.textContent = "…"; } say("Anlaşılıyor…");
+  try{
+    const body = {shop_id: S.cloud.shop.id, mode: m, text}; let pl = [];
+    if (m==="sat"){ pl = S.products.slice(0, 600); body.urunler = pl.map(p=>p.name); body.musteriler = Object.values(S.customers).map(c=>c.name).slice(0, 300); }
+    const {data, error} = await SB.functions.invoke("asistan", {body});
+    if (error){ let e = ""; try{ e = (await error.context?.json?.())?.error || ""; }catch(_){} throw new Error(e || "Olmadı. İnternetini kontrol et."); }
+    if (m==="sat") voiceApplySale(data, pl); else voiceApplyProduct(data);
+  }catch(e){ say(String(e.message||e)); }
+  finally{ if (btn && btn.isConnected){ btn.disabled = false; btn.textContent = "Gönder"; } }
+}
+// Söylenen satışı SEPETE koyar; ödeme düğmesine kullanıcı basar (yapay zekâ hiçbir şeyi kendi kaydetmez)
+function voiceApplySale(d, pl){
+  const added = [], miss = [], warn = []; S.posWarn = null; S.posErr = null;
+  for (const k of d.kalemler||[]){
+    const words = norm(k.urun).split(" ").filter(Boolean);
+    let p = (k.no!=null && pl[k.no]) || null;
+    if (p && !words.some(w=>norm(p.name).includes(w))) p = null;   // model yanlış numara verdiyse güvenme
+    if (!p){ const L = posSearch(k.urun); if (L.length===1) p = L[0]; }
+    if (!p){ miss.push(k.urun); continue; }
+    let q = Number(k.adet) || 1; if (k.birim==="gram") q = q/1000;
+    q = r3(q); if (!(q > 0)) continue;
+    if (k.birim!=="adet" && !p.byWeight) warn.push(`${p.name} kiloyla satılmıyor; ${fmt(q,3)} adet eklendi`);
+    cartAdd(p, q); added.push(`${fmt(q,3)} ${p.name}`);
+  }
+  const sw = S.posWarn; S.posWarn = null;
+  if (d.musteri){
+    const n = norm(d.musteri), L = Object.values(S.customers).filter(c=>c.name && c.name.length>1 && (norm(c.name).includes(n) || n.includes(norm(c.name))));
+    if (L.length===1){ S.pos.cust = L[0].id; warn.push(`Müşteri: ${L[0].name}`); }
+    else warn.push(L.length>1 ? `"${d.musteri}" için birden çok müşteri var, sen seç` : `"${d.musteri}" adlı müşteri bulunamadı`);
+  }
+  if (d.odeme==="veresiye" && !S.pos.cust) S.posPick = true;
+  S.voice = null; S.posQ = ""; cartSave();
+  if (!added.length){ S.posErr = `Söylediğin ürünü bulamadım${miss.length ? ": " + miss.join(", ") : ""}. Barkod okutarak ya da adını yazarak ekle.`; render(); return; }
+  S.posWarn = [`Sepete eklendi: ${added.join(", ")}.`, miss.length ? `Bulunamadı: ${miss.join(", ")}.` : "", warn.join(". ") + (warn.length ? "." : ""), sw || "",
+    d.odeme ? `Söylediğin ödeme: ${PAY[d.odeme]}.` : "", "Kontrol edip ödeme düğmesine bas."].filter(Boolean).join(" ");
+  render(); posFocus();
+}
+// Söylenen ürün bilgilerini formun kutularına yazar; Kaydet'e kullanıcı basar
+function voiceApplyProduct(d){
+  const msg = document.getElementById("v-msg"), done = [], bad = [];
+  const el_ = (a, b) => document.getElementById(a) || document.getElementById(b);   // Kolay formu (ku-) ya da eski form (f-)
+  const set = (a, b, val, label, tr) => { const el = el_(a, b); if (!el || el.readOnly || val==null || val==="") return; el.value = tr ? String(val).replace(".", ",") : String(val); el.dispatchEvent(new Event("input", {bubbles:true})); done.push(label); };
+  set("ku-name", "f-name", d.ad, "ad"); set("ku-sale", "f-sale", d.satis, "satış", 1); set("ku-buy", "f-buy", d.alis, "alış", 1); set("ku-cnt", "f-stock", d.stok, "stok", 1);
+  if (d.barkod){ if (eanOk(d.barkod)) set("ku-bc", "f-bc", d.barkod, "barkod"); else bad.push(d.barkod); }
+  if (d.birim){ const u = document.getElementById("f-unit"); const o = u && [...u.options].find(x=>norm(x.value||x.text)===norm(d.birim)); if (o){ u.value = o.value || o.text; done.push("birim"); } }
+  if (d.kilo){ const w = el_("ku-w", "f-w"); if (w && !w.checked){ w.checked = true; w.dispatchEvent(new Event("change", {bubbles:true})); done.push("kilo ile satılır"); } }
+  if (msg) msg.textContent = (done.length ? `Dolduruldu: ${done.join(", ")}. ` : "Bir şey anlayamadım. ") +
+    (bad.length ? `Barkod rakamları tutmadı (${bad[0]}), yazılmadı; kamerayla okut ya da tekrar söyle. ` : "") + (done.length ? "Kontrol edip Kaydet'e bas." : "");
+}
+document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.target.closest("[data-act^='v']"); if (!t) return; const a = t.dataset.act;
+  if (a==="vOpen"){ S.voice = "sat"; render(true); setTimeout(()=>document.getElementById("v-text")?.focus(), 0); }
+  else if (a==="vClose"){ voiceStop(); S.voice = null; render(true); posFocus(); }
+  else if (a==="vMic") voiceMic("v-text", t);
+  else if (a==="vSend") voiceSend(t.dataset.m);
+});
+document.addEventListener("keydown", ev=>{ if (ev.key==="Enter" && ev.target && ev.target.id==="v-text"){ ev.preventDefault(); ev.stopPropagation(); document.querySelector('[data-act="vSend"]')?.click(); } }, true);
+
 function posScan(raw){
   const txt = String(raw||"").trim(); if (!txt) return;
   S.posErr = null; S.posWarn = null; S.posUnknown = null;
@@ -4103,7 +4185,8 @@ function viewSell(){
   // ---- sol: okutma + sepet ----
   let L = `<form id="posform" class="scanbar" autocomplete="off"><span class="scanico">${BARCODE_SVG}</span>
       <input id="pos-scan" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" placeholder="Barkod ya da ürün adı" aria-label="Barkod ya da ürün adı" value="${esc(S.posQ||"")}">
-      ${camBtn("pos","Kamera")}<button class="primary" type="submit" aria-label="Ekle">${ic("plus",20)}</button></form>
+      ${camBtn("pos","Kamera")}<button type="button" class="camBtn" data-act="vOpen" aria-label="Sesle söyle" title="Sesle söyle">🎤</button><button class="primary" type="submit" aria-label="Ekle">${ic("plus",20)}</button></form>
+    ${S.voice==="sat" ? voiceBox("sat", "Örn. 2 ekmek, 1 süt, Ahmet'e veresiye") : ""}
     <div id="pos-res">${S.posQ ? posResults(S.posQ) : ""}</div>`;
   if (S.posErr) L += `<div class="notice bad">${esc(S.posErr)}</div>`;
   if (S.posWarn) L += `<div class="notice warn">${esc(S.posWarn)}</div>`;
@@ -5486,6 +5569,7 @@ function kUrun(){
   const num = x => x==null||x==="" ? "" : String(x).replace(".",","), lockP = isStaff() && !can("fiyat");
   return noticeHtml() + back + `<form id="kuform" class="kuform" autocomplete="off">
     <div class="kuhead"><span class="bi ${p?"c4":"c1"}">${ic(p?"tag":"plus",26)}</span><div><h2>${p ? "Ürünü Düzenle" : "Yeni Ürün"}</h2><p class="muted small">${p ? esc(v.name) : "Barkodu okut ya da adını yaz."}</p></div></div>
+    ${p ? "" : voiceBox("urun", "Örn. Ülker çikolata, satış 25, alış 20, stok 10, barkod 8 6 9 0…")}
     <section class="kustep"><span class="kun">1</span><div class="kubody">
       <label for="ku-bc">Barkod <span class="muted">(varsa)</span></label>
       <div class="kuscan">${ic("scan",26)}<input id="ku-bc" inputmode="numeric" value="${esc(bc)}" placeholder="Okut ya da yaz">${camBtn("ku-bc")}</div>

@@ -52,6 +52,10 @@ Tek bir **Ürün Ekle** düğmesi var; barkodlu ya da barkodsuz fark etmez. Form
 - **Tedarikçiler** (Ana Sayfa'daki kısayol ya da ayar düğmesi): kime ne kadar borcun var, ne aldın, ne ödedin. Kasadan "Para Al" yaparken tedarikçi seçersen borcundan düşer. Vade dolunca Ana Sayfa'da "Ödeme Zamanı" çıkar ve bildirim gelir.
 
 
+## Sesli komut (yapay zekâ)
+
+Satış ekranında 🎤 düğmesi: "2 ekmek, 1 süt, Ahmet'e veresiye" gibi bir cümleyi söyle ya da yaz; ürünler **sepete** konur, müşteri seçilir. Yapay zekâ kendi başına satış kaydetmez: ödeme düğmesine sen basarsın. Yeni ürün ekranında da ad, fiyat, stok ve barkod rakamlarını söyleyerek kutular doldurulur; Kaydet'e sen basarsın. Barkod rakamları kontrol basamağıyla doğrulanır, tutmuyorsa yazılmaz. Mikrofon tarayıcıda destekleniyorsa 🎤 düğmesi çıkar; yoksa klavyedeki mikrofon kullanılır. Sunucu fonksiyonu `asistan` (aynı `GEMINI_API_KEY`), dükkân başına günde 150 çağrı.
+
 ## Duyuru ve "Kendin Anlat"
 
 Ana Sayfa > Diğer İşler > **Duyuru**: hazır yazılarla (stok geldi, cuma mesajı, bayram, açık/kapalı, günaydın, kampanya) kart hazırlanır, WhatsApp vb. uygulamalarla paylaşılır. **Kendin Anlat** ile dükkân sahibi ne duyurmak istediğini kendi cümleleriyle yazar, sunucu duyuru yazısını hazırlar ve kart olarak gösterir. Üretilen kartta başlık, yazı ve emoji düzenlenir, renk değiştirilir. Önceki 10 duyuru kayıtlı kalır, hak harcamadan yeniden açılır. Ekranda **bugün kalan hak** görünür; günlük/aylık hak dolduysa (ya da özellik kapalıysa) bunu açıkça yazar ve Oluştur düğmesi kapanır.
