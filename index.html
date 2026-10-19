@@ -592,6 +592,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dyctl input,.dyctl select{font-size:18px;min-height:50px;width:100%;box-sizing:border-box}
 .dyrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.dyrow button{min-height:54px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
 .dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
+.dyold{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin:0 0 8px;min-height:60px}.dyold .dyoe{font-size:28px}.dyold b{display:block}.dyold small{color:var(--muted)}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
 .dyseg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dyseg button{min-height:54px;font-size:18px;font-weight:800}.dyseg button.on{background:var(--c1);color:#fff}
@@ -5587,6 +5588,21 @@ function dyBar(stage, hold){
   const f = document.getElementById("dy-fill"), m = document.getElementById("dy-msg");
   if (f) f.style.width = d.aiPct + "%"; if (m) m.textContent = d.aiMsg;
 }
+// Önceki Kendin Anlat duyuruları: sunucuda kayıtlı kalır, hak harcamadan yeniden açılır
+function dyGecmisHtml(){
+  const g = dyState().gecmis; if (!g || !g.length) return "";
+  return `<h3 style="margin:18px 0 6px">Önceki duyurular</h3><p class="muted small" style="margin:0 0 8px">Birine dokun, hak harcamadan tekrar aç.</p>` +
+    g.map(x=>`<button type="button" class="dyold" data-act="dyOld" data-id="${esc(x.id)}"><span class="dyoe">${esc(x.result?.emoji||"📣")}</span><span><b>${esc(x.result?.title||"Duyuru")}</b><small>${esc(new Date(x.created_at).toLocaleDateString("tr-TR",{day:"numeric",month:"long"}))}</small></span></button>`).join("");
+}
+async function dyGecmis(){
+  const d = dyState(); if (S.mode!=="cloud" || !S.cloud?.shop) return;
+  try{
+    const {data, error} = await SB.from("ai_jobs").select("id,prompt,result,created_at").eq("shop_id", S.cloud.shop.id).eq("status","bitti").order("created_at",{ascending:false}).limit(10);
+    if (error || !data) return;
+    d.gecmis = data.filter(x=>x.result && x.result.title);
+    const box = document.getElementById("dy-gecmis"); if (box) box.innerHTML = dyGecmisHtml();
+  }catch(_){}
+}
 // Kendin Anlat kalan hak (sunucudan): doluysa ekranda söylenir, düğme kapanır
 const dyBlocked = d => !!(d.kalan && (!d.kalan.enabled || d.kalan.daily_left <= 0 || d.kalan.monthly_left <= 0));
 function dyKalanHtml(){
@@ -5624,7 +5640,8 @@ function kDuyuru(){
       <div id="dy-kalan">${dyKalanHtml()}</div>
       ${d.aiErr ? `<div class="notice bad" style="margin-top:8px">${esc(d.aiErr)}</div>` : ""}
       ${d.aiBusy ? `<div class="dybar"><div class="tr"><div class="fl" id="dy-fill" style="width:${d.aiPct||0}%"></div></div><p id="dy-msg" class="muted">${esc(d.aiMsg||"Başlıyor…")}</p></div>` : ""}
-      <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy || dyBlocked(d) ?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>`;
+      <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy || dyBlocked(d) ?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>
+      <div id="dy-gecmis">${dyGecmisHtml()}</div>`;
   }
   const c = dyCtx(), needP = d.type==="stok" || d.type==="kampanya";
   const prods = S.products.slice().sort((a,b)=>a.name.localeCompare(b.name,"tr"));
@@ -5638,6 +5655,7 @@ function kDuyuru(){
       ${field((d.type==="bayram"||d.type==="acik") && d.durum==="acik", `<label>Saat<input id="dy-saat" value="${esc(d.saat)}" placeholder="08:00 - 22:00"></label>`)}
       ${field(d.type==="bayram", `<label>Bayram adı<input id="dy-bay" value="${esc(d.bayram)}" placeholder="Kurban Bayramınız"></label>`)}
     </div>
+    ${d.type==="ozel" && d.ai ? `<div class="dyctl"><label>Başlık<input id="dy-et" maxlength="70" value="${esc(d.ai.title||"")}"></label><label>Yazı<textarea id="dy-eb" rows="3" maxlength="180" style="width:100%;font-size:18px">${esc(d.ai.body||"")}</textarea></label><label>Emoji<input id="dy-ee" maxlength="8" value="${esc(d.ai.emoji||"")}" style="width:90px"></label></div>` : ""}
     ${d.type==="ozel" && d.ai && d.ai.mode==="taslak" ? `<p class="muted small" style="text-align:center">Yapay zekâ henüz açık değil; yazdığın cümleden taslak hazırlandı.</p>` : ""}
     <div class="dyrow">${d.type==="ozel" ? `<button type="button" data-act="dyAiReset">${ic("search",20)} Yeniden Yaz</button>` : `<button type="button" data-act="dyNext">${ic("search",20)} Başka Yazı</button>`}<button type="button" data-act="dyTheme">${ic("tag",20)} Başka Renk</button></div>
     <button class="primary dybig" type="button" data-act="dySend">${ic("mega",24)} Gönder</button>
@@ -5647,13 +5665,15 @@ function kDuyuru(){
 function dyUpd(){ const im = document.getElementById("dy-img"); if (im) im.src = dyImg(); }
 document.addEventListener("input", ev=>{ const id = ev.target.id, d = S.dy; if (!d) return;
   if (id==="dy-ai"){ d.aiPrompt = ev.target.value; return; }
+  if (id==="dy-et" || id==="dy-eb" || id==="dy-ee"){ if (!d.ai) return; const v = ev.target.value; if (id==="dy-et") d.ai.title = v; else if (id==="dy-eb") d.ai.body = v; else d.ai.emoji = Array.from(v.trim())[0] || ""; dyUpd(); return; }
   if (id==="dy-price"){ d.fiyat = ev.target.value; dyUpd(); }
   else if (id==="dy-saat"){ d.saat = ev.target.value; dySave(); dyUpd(); }
   else if (id==="dy-bay"){ d.bayram = ev.target.value; dySave(); dyUpd(); } });
 document.addEventListener("change", ev=>{ if (ev.target.id==="dy-prod" && S.dy){ S.dy.urun = ev.target.value; S.dy.fiyat = ""; render(true); } });
 async function dyAct(a, t){
   const d = dyState();
-  if (a==="dyAiReset"){ d.ai = null; d.aiErr = ""; render(); dyKalan(); return true; }
+  if (a==="dyAiReset"){ d.ai = null; d.aiErr = ""; render(); dyKalan(); dyGecmis(); return true; }
+  if (a==="dyOld"){ const x = (d.gecmis||[]).find(g=>g.id===t.dataset.id); if (x){ d.ai = {...x.result}; d.aiPrompt = x.prompt || ""; d.aiErr = ""; d.v = 0; render(); window.scrollTo(0,0); } return true; }
   if (a==="dyAi"){
     const p = (d.aiPrompt||"").trim();
     if (p.length < 3){ d.aiErr = "Ne duyurmak istediğini biraz yaz."; render(true); return true; }
@@ -5673,8 +5693,8 @@ async function dyAct(a, t){
       }
       if (!d.ai) throw new Error("Biraz uzun sürdü. Tekrar dene.");
     }catch(e){ d.aiErr = String(e.message || e); }
-    d.aiBusy = false; render(true); dyKalan(); return true; }
-  if (a==="dyType"){ d.type = t.dataset.id; d.ai = null; d.aiErr = ""; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); if (d.type==="ozel") dyKalan(); return true; }
+    d.aiBusy = false; render(true); dyKalan(); dyGecmis(); return true; }
+  if (a==="dyType"){ d.type = t.dataset.id; d.ai = null; d.aiErr = ""; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); if (d.type==="ozel"){ dyKalan(); dyGecmis(); } return true; }
   if (a==="dyBack"){ d.type = null; render(); window.scrollTo(0,0); return true; }
   if (a==="dyNext"){ d.v++; dyUpd(); return true; }
   if (a==="dyTheme"){ d.theme = (d.theme+1) % Duyuru.THEMES.length; dySave(); dyUpd(); return true; }
