@@ -52,6 +52,15 @@ Tek bir **Ürün Ekle** düğmesi var; barkodlu ya da barkodsuz fark etmez. Form
 - **Tedarikçiler** (Ana Sayfa'daki kısayol ya da ayar düğmesi): kime ne kadar borcun var, ne aldın, ne ödedin. Kasadan "Para Al" yaparken tedarikçi seçersen borcundan düşer. Vade dolunca Ana Sayfa'da "Ödeme Zamanı" çıkar ve bildirim gelir.
 
 
+## Duyuru ve "Kendin Anlat"
+
+Ana Sayfa > Diğer İşler > **Duyuru**: hazır yazılarla (stok geldi, cuma mesajı, bayram, açık/kapalı, günaydın, kampanya) kart hazırlanır, WhatsApp vb. uygulamalarla paylaşılır. **Kendin Anlat** ile dükkân sahibi ne duyurmak istediğini kendi cümleleriyle yazar, sunucu duyuru yazısını hazırlar ve kart olarak gösterir.
+
+- İş sunucuda (`reklam` fonksiyonu, `supabase/functions/reklam/`) aşama aşama yürür; sonuç `ai_jobs` tablosuna yazılır, uygulama bekleyip okur.
+- **Yapay zekâ anahtarı uygulamada ya da bu depoda yoktur.** Sadece Supabase > Edge Functions > Secrets içinde `ANTHROPIC_API_KEY` olarak tutulur. Anahtar yokken sistem ücretsiz taslak yazı üretir ("Yapay zekâ henüz açık değil" notuyla).
+- Maliyet kontrolü: sadece dükkân sahibi kullanabilir, dükkân başına varsayılan günde 3 / ayda 20 üretim (`ai_limits` tablosundan değişir), aynı anda tek iş.
+- Yeni aşama (afiş görseli, video, seslendirme) `STEPS` listesine eklenir.
+
 ## Çırak (çalışan) hesabı ve yetkiler
 
 Dükkân sahibi çırağına ayrı bir hesap açar. Çırak varsayılan olarak sadece satış, stok sayımı (artırma), mal geldi, veresiye ve ürün adı girebilir. Kasa, kâr, rapor, fire, iade, fiyat yazma ve stoğu azaltma **kapalıdır**. Bu kurallar ekranda ve veritabanında uygulanır.
