@@ -56,6 +56,10 @@ Tek bir **Ürün Ekle** düğmesi var; barkodlu ya da barkodsuz fark etmez. Form
 
 Satış ekranında 🎤 düğmesi: "2 ekmek, 1 süt, Ahmet'e veresiye" gibi bir cümleyi söyle ya da yaz; ürünler **sepete** konur, müşteri seçilir. Yapay zekâ kendi başına satış kaydetmez: ödeme düğmesine sen basarsın. Yeni ürün ekranında da ad, fiyat, stok ve barkod rakamlarını söyleyerek kutular doldurulur; Kaydet'e sen basarsın. Barkod rakamları kontrol basamağıyla doğrulanır, tutmuyorsa yazılmaz. Mikrofon tarayıcıda destekleniyorsa 🎤 düğmesi çıkar; yoksa klavyedeki mikrofon kullanılır. Sunucu fonksiyonu `asistan` (aynı `GEMINI_API_KEY`), dükkân başına günde 150 çağrı.
 
+## Asistana Sor
+
+Diğer İşler > **Asistana Sor** (sadece dükkân sahibi): "Bugün ne kadar sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?" gibi sorular yazılır. Gemini "araç çağırma" ile uygulamadaki okuma işlevlerini (satış özeti, en çok satanlar, stok, veresiye) sırayla çağırır ve cevabı yazar. Araçlar telefonda çalışır, hiçbir kaydı değiştirmez; adım sınırı 5. Gemini'ye sorunla ilgili rakamlar ve ürün/müşteri adları gider, telefon numaraları gitmez. Satış bilgisi son 30 günü kapsar. Her adım, sesli komutun günlük 150 çağrılık hakkından sayılır.
+
 ## Duyuru ve "Kendin Anlat"
 
 Ana Sayfa > Diğer İşler > **Duyuru**: hazır yazılarla (stok geldi, cuma mesajı, bayram, açık/kapalı, günaydın, kampanya) kart hazırlanır, WhatsApp vb. uygulamalarla paylaşılır. **Kendin Anlat** ile dükkân sahibi ne duyurmak istediğini kendi cümleleriyle yazar, sunucu duyuru yazısını hazırlar ve kart olarak gösterir. Üretilen kartta başlık, yazı ve emoji düzenlenir, renk değiştirilir. Önceki 10 duyuru kayıtlı kalır, hak harcamadan yeniden açılır. Ekranda **bugün kalan hak** görünür; günlük/aylık hak dolduysa (ya da özellik kapalıysa) bunu açıkça yazar ve Oluştur düğmesi kapanır.

@@ -76,7 +76,7 @@ input[type=checkbox]{width:20px;height:20px;accent-color:var(--accent)}
 .notice.bad{background:var(--bad-soft);color:var(--bad)}
 .empty{text-align:center;padding:28px 12px}
 .empty .big{font-size:40px;font-family:var(--mono);color:var(--muted)}
-body.staff [data-act="goKasa"],body.staff [data-act="kKasa"],body.staff [data-act="goRapor"],body.staff [data-act="posView"][data-v="kasa"],body.staff [data-tab="k-kar"],body.staff [data-tab="k-kasa"],body.staff [data-tab="kar"],body.staff [data-tab="rapor"],body.staff [data-tab="maliyet"],body.staff [data-tab="plan"],body.staff [data-tab="duyuru"],body.staff:not(.p-fire) [data-tab="fire"],body.staff:not(.p-iade) [data-act="posRet"],body.staff .ktoday,body.staff #excel{display:none!important}
+body.staff [data-act="goKasa"],body.staff [data-act="kKasa"],body.staff [data-act="goRapor"],body.staff [data-act="posView"][data-v="kasa"],body.staff [data-tab="k-kar"],body.staff [data-tab="k-kasa"],body.staff [data-tab="kar"],body.staff [data-tab="rapor"],body.staff [data-tab="maliyet"],body.staff [data-tab="plan"],body.staff [data-tab="duyuru"],body.staff [data-tab="sor"],body.staff:not(.p-fire) [data-tab="fire"],body.staff:not(.p-iade) [data-act="posRet"],body.staff .ktoday,body.staff #excel{display:none!important}
 html.kolay body.staff nav.tabs{grid-template-columns:repeat(3,1fr)}
 .hr{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
 .hr>div:first-child{min-width:0;flex:1}.hr b{display:block;overflow-wrap:anywhere}.hr .d{text-align:right;font-weight:800;white-space:nowrap}.hr .d small{display:block;font-weight:700}
@@ -594,6 +594,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
 .dyold{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin:0 0 8px;min-height:60px}.dyold .dyoe{font-size:28px}.dyold b{display:block}.dyold small{color:var(--muted)}
 .vbox{background:var(--accent-soft);border-radius:12px;padding:10px;margin:8px 0}.vmic{min-width:48px;font-size:22px}.vmic.rec{background:#c62828;color:#fff;animation:vpulse 1s infinite}@keyframes vpulse{50%{opacity:.6}}
+.askm{padding:10px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.4}.askm.u{background:var(--accent-soft);margin-left:28px}.askm.a{border:1px solid var(--accent-soft);margin-right:28px}.askchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.askchips button{min-height:44px}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
 .dyseg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dyseg button{min-height:54px;font-size:18px;font-weight:800}.dyseg button.on{background:var(--c1);color:#fff}
@@ -3133,7 +3134,7 @@ function subscribe(){
 }
 async function loadPeople(){ if (!C.shop || !SB) return; try{ const {data, error} = await SB.rpc("shop_members", {p_shop:C.shop.id}); if (!error){ C.people = data||[]; C.peopleAt = Date.now(); cloudSave(); } }catch(_){} }
 /* Çalışan (staff) yetkisi: kasa, kâr, rapor, duyuru ve yedek ekranlarını görmez */
-const STAFF_NO = new Set(["fire","hareket","kar","k-kar","rapor","kasa","k-kasa","maliyet","plan","duyuru"]);
+const STAFF_NO = new Set(["fire","hareket","kar","k-kar","rapor","kasa","k-kasa","maliyet","plan","duyuru","sor"]);
 function isStaff(){
   if (S.mode!=="cloud" || !C.shop) return false; const x = C.ctx || {}; if (x.is_admin) return false;
   const me = (x.shops||[]).find(s=>s.id===C.shop.id); return !!me && me.role==="staff";
@@ -4107,6 +4108,80 @@ document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.targe
   else if (a==="vSend") voiceSend(t.dataset.m);
 });
 document.addEventListener("keydown", ev=>{ if (ev.key==="Enter" && ev.target && ev.target.id==="v-text"){ ev.preventDefault(); ev.stopPropagation(); document.querySelector('[data-act="vSend"]')?.click(); } }, true);
+
+/* ---- Asistana Sor (KAN-18): Gemini araç çağırır; araçlar burada, SADECE okur, kayıt değiştirmez ---- */
+const askState = () => (S.ask ||= {msgs:[], contents:[], busy:false, err:""});
+function askTool(name, a){
+  a = a || {};
+  const q2 = n => Math.round((Number(n)||0)*100)/100;
+  try{
+    if (name==="satis_ozeti" || name==="en_cok_satanlar"){
+      const g = Math.min(30, Math.max(1, Math.round(Number(a.gun)||1))), to = today0() + DAY, from = to - g*DAY;
+      const d = reportLocal(from, to, "day");
+      if (name==="satis_ozeti"){
+        const t = {fis:0, ciro:0, iade:0, nakit:0, kart:0, veresiye:0, maliyet:0, ciro_bilinen:0};
+        for (const x of d.periods) for (const k in t) t[k] += Number(x[k])||0;
+        return {gun:g, fis:t.fis, ciro:q2(t.ciro), iade:q2(t.iade), nakit:q2(t.nakit), kart:q2(t.kart), veresiye:q2(t.veresiye),
+          tahmini_kar:q2(t.ciro_bilinen - t.maliyet), kar_kapsami: t.ciro>0 ? "satışların %" + Math.round(100*t.ciro_bilinen/t.ciro) + "'inde alış fiyatı biliniyor" : null};
+      }
+      const n = Math.min(10, Math.max(1, Math.round(Number(a.adet)||5)));
+      return {gun:g, urunler: d.products.slice(0, n).map(p=>({urun:p.n, adet:r3(p.q), ciro:q2(p.ciro)}))};
+    }
+    if (name==="stok"){
+      const row = p => { const st = stockStatus(p, stats(p)); return {urun:p.name, durum:st.t, stok: st.cur.known ? r3(st.cur.v) : "bilinmiyor", birim:p.unit||"tane"}; };
+      if (a.urun){ const L = posSearch(String(a.urun)).slice(0, 5); return L.length ? {urunler:L.map(row)} : {urunler:[], not:"Bu adla ürün bulunamadı."}; }
+      const all = stockP().filter(p=>{ const k = stockStatus(p, stats(p)).k; return k==="low" || k==="out"; });
+      return {toplam:all.length, urunler:all.slice(0, 25).map(row)};
+    }
+    if (name==="veresiye"){
+      const cs = Object.values(S.customers||{});
+      if (a.musteri){ const n = norm(String(a.musteri)); const L = cs.filter(c=>c.name && norm(c.name).includes(n)).slice(0, 5);
+        return L.length ? {musteriler:L.map(c=>{ const s = custStats(c); return {musteri:c.name, borc:q2(s.bal), en_eski_borc_gun: s.oldest ? Math.round(s.ageDays) : null}; })} : {musteriler:[], not:"Bu adla müşteri bulunamadı."}; }
+      const L = cs.map(c=>({c, b:custStats(c).bal})).filter(x=>x.b > 0.005).sort((x,y)=>y.b - x.b);
+      return {toplam_alacak:q2(L.reduce((t,x)=>t + x.b, 0)), borclu_sayisi:L.length, en_cok_borclular:L.slice(0, 10).map(x=>({musteri:x.c.name, borc:q2(x.b)}))};
+    }
+  }catch(e){ return {hata:"Hesaplanamadı"}; }
+  return {hata:"Bilinmeyen araç"};
+}
+async function askRun(q){
+  const A = askState(); q = String(q||"").trim(); if (q.length < 2 || A.busy) return;
+  if (S.mode!=="cloud" || !S.cloud?.shop){ A.err = "Bunun için hesabınla giriş yapman gerekir."; render(true); return; }
+  if (A.contents.length > 10) A.contents = [];          // konuşma uzadıysa temiz başla (ekrandaki yazılar kalır)
+  A.busy = true; A.err = ""; A.msgs.push({r:"u", t:q}); A.contents.push({role:"user", parts:[{text:q}]}); render(true); askScroll();
+  try{
+    let done = false;
+    for (let step = 0; step < 5 && !done; step++){
+      const {data, error} = await SB.functions.invoke("asistan", {body:{shop_id:S.cloud.shop.id, mode:"ask", contents:A.contents}});
+      if (error){ let e = ""; try{ e = (await error.context?.json?.())?.error || ""; }catch(_){} throw new Error(e || "Olmadı. İnternetini kontrol et."); }
+      if (data?.kind==="tool" && Array.isArray(data.calls) && data.content){
+        A.contents.push(data.content);
+        A.contents.push({role:"user", parts:data.calls.map(c=>({functionResponse:{name:c.name, response:{sonuc:askTool(c.name, c.args)}}}))});
+      } else if (data?.kind==="text" && data.text){
+        A.contents.push({role:"model", parts:[{text:data.text}]}); A.msgs.push({r:"a", t:data.text}); done = true;
+      } else throw new Error("Cevap alınamadı. Tekrar dene.");
+    }
+    if (!done) throw new Error("Çok adım gerekti, soruyu daha basit sor.");
+  }catch(e){ A.err = String(e.message||e); A.contents = []; }
+  A.busy = false; render(true); askScroll();
+}
+const askScroll = () => setTimeout(()=>{ try{ window.scrollTo(0, document.body.scrollHeight); document.getElementById("ask-q")?.focus(); }catch(_){} }, 30);
+function kSor(){
+  const A = askState();
+  const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?"];
+  return noticeHtml() + backLink() + `<h2 style="margin:6px 0 4px">Asistana Sor</h2>
+    <p class="muted small" style="margin:0 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Hiçbir kaydı değiştirmez, sadece okur.</p>
+    <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
+    ${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}
+    ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
+    <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}><button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
+    ${A.msgs.length ? `<button class="link" type="button" data-act="askNew">Yeni konuşma</button>` : ""}
+    <p class="muted small">Cevap için sorunla ilgili rakamlar ve ürün/müşteri adları Google Gemini'ye gönderilir; telefon numaraları gönderilmez. Satış bilgisi son 30 günü kapsar.</p>`;
+}
+document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.target.closest("[data-act^='ask']"); if (!t) return;
+  if (t.dataset.act==="askQ") askRun(t.dataset.q);
+  else if (t.dataset.act==="askNew"){ S.ask = null; render(true); }
+});
+document.addEventListener("submit", ev=>{ if (ev.target.id!=="askform") return; ev.preventDefault(); const el = document.getElementById("ask-q"); const q = el ? el.value : ""; if (el) el.value = ""; askRun(q); });
 
 function posScan(raw){
   const txt = String(raw||"").trim(); if (!txt) return;
@@ -5410,9 +5485,9 @@ GUIDE.tedarik = {t:"Tedarikçiler: kime ne borcun var", s:[
 /* ================= Bakkal Kolay: sade arayüz, aynı veri ve aynı hesaplar ================= */
 window.KOLAY = true;
 const K_MAP = {ana:"k-ana", menu:"k-daha", stok:"k-stok", kar:"k-kar"};
-const K_MORE = ["hareket","duyuru","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
+const K_MORE = ["hareket","duyuru","sor","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
 const K_MAL = ["Toptancı / plasiyer ödemesi","Ekmekçi"], K_DIS = ["Bankaya yatırıldı","Kendime aldım"];
-Object.assign(titles, {"k-ana":"Ana Sayfa", "k-kasa":"Kasa", "k-stok":"Stok", "k-kar":"Kâr ve Zarar", "k-daha":"Daha Fazla", "k-urun":"Ürün", duyuru:"Duyuru", hareket:"Stok Hareketleri"});
+Object.assign(titles, {"k-ana":"Ana Sayfa", "k-kasa":"Kasa", "k-stok":"Stok", "k-kar":"Kâr ve Zarar", "k-daha":"Daha Fazla", "k-urun":"Ürün", duyuru:"Duyuru", sor:"Asistana Sor", hareket:"Stok Hareketleri"});
 function kRoute(){
   if (S.tab==="urunler"){ if (!S.products.length) S.tab = "k-ana"; else if (S.editId){ S.kEdit = S.editId; S.editId = null; S.tab = "k-urun"; } else S.tab = "k-stok"; }
   if (K_MAP[S.tab]) S.tab = K_MAP[S.tab]; S.guide = false; }
@@ -5557,6 +5632,7 @@ function kDaha(){
     ${t("kGo", 'data-tab="tedarik"', "c2", ic("truck",28), "Tedarikçiler", (()=>{ const v = supList().reduce((a,x)=>a+Math.max(0,supStats(x.id).bal),0); return v>0.005 ? `Borcum: ${kTL(v)}` : "Borç, mal geldi, ödeme"; })())}
     ${t("kGo", 'data-tab="hareket"', "c4", ic("list",28), "Stok Hareketleri", "Kim ne yaptı")}
     ${t("kGo", 'data-tab="duyuru"', "c6", ic("mega",28), "Duyuru", "Mahalleye haber ver")}
+    ${t("kGo", 'data-tab="sor"', "c1", ic("search",28), "Asistana Sor", "Ciro, stok, veresiye")}
     ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}
     ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Şifre, yedek")}
   </div>`;
@@ -5811,7 +5887,7 @@ async function kolayAct(a, t, id){
     offerUndo(`${old.name} silindi.`, ()=>store.saveProduct(old)); S.kEdit = null; S.tab = "k-stok"; S.msg = {kind:"ok", text:`${old.name} silindi.`}; render(); window.scrollTo(0,0); return true; }
   return false;
 }
-const KV = {"k-ana":kAna, "k-kasa":kKasa, "k-stok":kStok, "k-kar":kKar, "k-daha":kDaha, "k-urun":kUrun, satis:kPos, duyuru:kDuyuru, hareket:viewHareket};
+const KV = {"k-ana":kAna, "k-kasa":kKasa, "k-stok":kStok, "k-kar":kKar, "k-daha":kDaha, "k-urun":kUrun, satis:kPos, duyuru:kDuyuru, sor:kSor, hareket:viewHareket};
 document.addEventListener("submit", ev=>{ if (ev.target.id==="kuform"){ ev.preventDefault(); kSave(ev.submitter?.dataset?.k==="next"); } });
 document.addEventListener("input", ev=>{ const id = ev.target.id; if (id==="ku-sale" || id==="ku-buy"){ const k = document.getElementById("ku-kar"); if (k) k.innerHTML = kKarTxt(document.getElementById("ku-sale").value, document.getElementById("ku-buy").value); } else if (id==="ku-bc") kBcCheck(); });
 document.addEventListener("input", ev=>{ if (ev.target.id==="k-q"){ S.kq = ev.target.value; const L = document.getElementById("k-list"); if (L) L.innerHTML = kStokList(kStockRows()); } });
