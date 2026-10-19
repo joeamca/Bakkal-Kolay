@@ -4052,7 +4052,7 @@ function voiceMic(inputId, btn, after){
   voiceRec = rec; if (btn) btn.classList.add("rec");
   try{ rec.start(); }catch(_){ done(); }
 }
-const voiceBox = (m, ph) => `<div class="vbox"><div class="row nowrap"><textarea id="v-text" class="vtext" rows="2" autocomplete="off" enterkeyhint="send" maxlength="400" placeholder="${esc(ph)}" aria-label="Söyle ya da yaz" style="flex:1"></textarea>${SpeechR ? `<button type="button" class="vmic" data-act="vMic" aria-label="Konuş">🎤</button>` : ""}<button type="button" class="primary" data-act="vSend" data-m="${m}">Gönder</button>${m==="sat" ? `<button type="button" class="link" data-act="vClose" aria-label="Kapat">×</button>` : ""}</div><p id="v-msg" class="small muted" style="margin:6px 0 0">${SpeechR ? "Mikrofona bas ve söyle; ya da klavyedeki mikrofonu kullan." : "Klavyedeki mikrofon düğmesiyle söyleyebilir ya da yazabilirsin."}</p></div>`;
+const voiceBox = (m, ph) => isStaff() ? "" : `<div class="vbox"><div class="row nowrap"><textarea id="v-text" class="vtext" rows="2" autocomplete="off" enterkeyhint="send" maxlength="400" placeholder="${esc(ph)}" aria-label="Söyle ya da yaz" style="flex:1"></textarea>${SpeechR ? `<button type="button" class="vmic" data-act="vMic" aria-label="Konuş">🎤</button>` : ""}<button type="button" class="primary" data-act="vSend" data-m="${m}">Gönder</button>${m==="sat" ? `<button type="button" class="link" data-act="vClose" aria-label="Kapat">×</button>` : ""}</div><p id="v-msg" class="small muted" style="margin:6px 0 0">${SpeechR ? "Mikrofona bas ve söyle; ya da klavyedeki mikrofonu kullan." : "Klavyedeki mikrofon düğmesiyle söyleyebilir ya da yazabilirsin."}</p></div>`;
 function eanOk(c){ if (!/^(\d{8}|\d{12,14})$/.test(c)) return false; const d = c.split("").map(Number), chk = d.pop(); let t = 0; d.reverse().forEach((x,i)=>{ t += x*(i%2===0 ? 3 : 1); }); return (10 - t%10)%10 === chk; }
 async function voiceSend(m){
   const el = document.getElementById("v-text"), msg = document.getElementById("v-msg"), btn = document.querySelector('[data-act="vSend"]');
@@ -4196,6 +4196,52 @@ function askTool(name, a){
       A.pending.push({pid:p.id, urun:p.name, alan, eski, yeni});
       return {durum:"onay_bekliyor", urun:p.name, alan, eski, yeni, not:"Kayıt henüz değişmedi; kullanıcı kutudan onaylayınca uygulanır."};
     }
+    if (name==="satis_oner" || name==="urun_sil_oner" || name==="tahsilat_oner" || name==="kasa_oner"){
+      const A = askState(); A.pending = A.pending || [];
+      if (A.pending.length >= 10) return {hata:"Tek seferde en fazla 10 işlem önerilebilir."};
+      const okR = {durum:"onay_bekliyor", not:"Kayıt henüz değişmedi; kullanıcı kutudan onaylayınca uygulanır."};
+      const findCust = q => { const n = norm(String(q||"")); if (n.length<2) return {hata:"Müşteri adı gerekli."};
+        const L = Object.values(S.customers||{}).filter(c=>c.name && (norm(c.name).includes(n) || n.includes(norm(c.name))));
+        return L.length===1 ? {c:L[0]} : {hata: L.length ? "Birden çok müşteri eşleşti: " + L.slice(0,5).map(c=>c.name).join(", ") + ". Hangisi olduğunu sor." : "Bu adla müşteri yok. Müşteriyi önce müşteri ekranından eklemek gerekir."}; };
+      if (name==="urun_sil_oner"){
+        const L = posSearch(String(a.urun||""));
+        if (L.length !== 1) return {hata: L.length ? "Birden çok ürün eşleşti: " + L.slice(0,5).map(p=>p.name).join(", ") + ". Hangisi olduğunu sor." : "Bu adla ürün bulunamadı."};
+        const p = L[0]; A.pending = A.pending.filter(x=>!(x.tur==="sil" && x.pid===p.id));
+        A.pending.push({tur:"sil", pid:p.id, ozet:`Ürünü SİL: ${p.name}`, uyari:"geri alınamaz"}); return {...okR, urun:p.name}; }
+      if (name==="satis_oner"){
+        const arr = Array.isArray(a.kalemler) ? a.kalemler.slice(0, 20) : [];
+        if (!arr.length) return {hata:"Satılacak ürün yok."};
+        const pay = ["nakit","kart","veresiye"].includes(String(a.odeme)) ? String(a.odeme) : null;
+        if (!pay) return {hata:"Ödeme türü (nakit, kart ya da veresiye) belli değil; kullanıcıya sor."};
+        let cust = null; if (pay==="veresiye"){ const f = findCust(a.musteri); if (f.hata) return f; cust = f.c; }
+        else if (a.musteri){ const f = findCust(a.musteri); if (f.c) cust = f.c; }
+        const it = [];
+        for (const k of arr){ const L = posSearch(String(k.urun||""));
+          if (L.length !== 1) return {hata: L.length ? `"${k.urun}" için birden çok ürün var: ` + L.slice(0,5).map(p=>p.name).join(", ") + ". Hangisi olduğunu sor." : `"${k.urun}" adlı ürün bulunamadı.`};
+          const p = L[0]; let q = Number(String(k.adet ?? 1).replace(",", ".")); if (String(k.birim)==="gram") q = q/1000;
+          q = r3(q); if (!(q > 0) || q > 10000) return {hata:`${p.name} için adet geçersiz.`};
+          if (!(Number(p.salePrice) > 0)) return {hata:`${p.name} için satış fiyatı tanımlı değil.`};
+          const b = buyOf(p); it.push({p:p.id, n:p.name, q, u:r2(p.salePrice), ...(b!=null ? {b} : {}), ...(p.byWeight ? {w:1} : {})}); }
+        const tot = r2(it.reduce((x,y)=>x+y.q*y.u, 0));
+        const sale = {id:newId(), d:nowIso(), it, tot, pay, ...(cust ? {c:cust.id} : {})};
+        A.pending.push({tur:"satis", sale, ozet:`Satış kaydet (${PAY[pay]}${cust ? ", " + cust.name : ""}): ` + it.map(x=>fmt(x.q,3) + " " + x.n + " × " + TLx(x.u)).join(", ") + ` = ${TLx(tot)}`});
+        return {...okR, toplam:tot}; }
+      if (name==="tahsilat_oner"){
+        const f = findCust(a.musteri); if (f.hata) return f;
+        const amt = r2(Number(String(a.tutar).replace(",", "."))); if (!Number.isFinite(amt) || !(amt > 0) || amt > 1e6) return {hata:"Tutar geçersiz."};
+        const tip = String(a.islem)==="borc" ? "borc" : "odeme";
+        A.pending.push({tur:"tahsilat", tip, cid:f.c.id, amt, ozet: tip==="odeme" ? `${f.c.name} veresiye ödemesi aldı: ${TLx(amt)}` : `${f.c.name} defterine borç yaz: ${TLx(amt)}`});
+        return {...okR, musteri:f.c.name, mevcut_borc:custStats(f.c).bal}; }
+      if (name==="kasa_oner"){
+        const t = String(a.islem)==="giris" ? "giris" : String(a.islem)==="cikis" ? "cikis" : null; if (!t) return {hata:"islem giris ya da cikis olmalı."};
+        const amt = r2(Number(String(a.tutar).replace(",", "."))); if (!Number.isFinite(amt) || !(amt > 0) || amt > 1e6) return {hata:"Tutar geçersiz."};
+        const list = t==="giris" ? IN_REASONS : OUT_REASONS; let r = list.find(x=>norm(x)===norm(String(a.neden||""))) || null;
+        const n = String(a.aciklama||"").replace(/[\u0000-\u001f]/g," ").trim().slice(0, 120);
+        if (!r){ if (!n) return {hata:"Neden listede yok. Nedenlerden birini seç: " + list.join(" | ") + " (ya da Diğer + açıklama)."}; r = "Diğer"; }
+        if (r==="Diğer" && !n) return {hata:"Diğer için açıklama gerekli."};
+        A.pending.push({tur:"kasa", cash:{id:newId(), d:nowIso(), t, a:amt, r, ...(n ? {n} : {})}, ozet:`Kasaya ${t==="giris" ? "para KOY" : "paradan ÇIKAR"}: ${TLx(amt)} · ${r}${n ? " (" + n + ")" : ""}`});
+        return okR; }
+    }
     if (name==="dukkan_ozeti"){
       const staff = (C.people||[]).filter(x=>x.role==="staff").length;
       return {dukkan_adi: shopTitle()||null, kullanici: isStaff() ? "çalışan" : "dükkân sahibi", urun_sayisi:S.products.length, musteri_sayisi:Object.keys(S.customers||{}).length,
@@ -4296,7 +4342,7 @@ const ASK_LBL = {satis_fiyati:"Satış fiyatı", alis_fiyati:"Alış fiyatı", a
 const askVal = (alan, v) => v==null ? "yok" : alan==="ad" ? `“${v}”` : alan==="stok_sayim" ? fmt(v,3) : TLx(v);
 function askPendingHtml(A){
   if (!A.pending || !A.pending.length) return "";
-  return `<div class="notice warn askpend"><b>Onayını bekliyor (${A.pending.length} değişiklik)</b><ul style="margin:6px 0 8px;padding-left:18px">${A.pending.map(x=>x.yeniUrun ? `<li><b>Yeni ürün: ${esc(x.urun)}</b> · satış ${esc(TLx(x.d.satis))}${x.d.alis!=null ? `, alış ${esc(TLx(x.d.alis))}` : ""}${x.d.stok!=null ? `, stok ${esc(fmt(x.d.stok,3))}` : ""}${x.d.barkod ? `, barkod ${esc(x.d.barkod)}` : ""}${x.d.kilo ? ", kiloyla satılır" : ""}${x.d.tedarikci ? `, tedarikçi ${esc(x.d.tedarikci)}` : ""}</li>` : `<li><b>${esc(x.urun)}</b> · ${ASK_LBL[x.alan]}: ${esc(askVal(x.alan, x.eski))} → <b>${esc(askVal(x.alan, x.yeni))}</b></li>`).join("")}</ul>
+  return `<div class="notice warn askpend"><b>Onayını bekliyor (${A.pending.length} değişiklik)</b><ul style="margin:6px 0 8px;padding-left:18px">${A.pending.map(x=>x.tur ? `<li><b>${esc(x.ozet)}</b>${x.uyari ? ` <span class="neg">(${esc(x.uyari)})</span>` : ""}</li>` : x.yeniUrun ? `<li><b>Yeni ürün: ${esc(x.urun)}</b> · satış ${esc(TLx(x.d.satis))}${x.d.alis!=null ? `, alış ${esc(TLx(x.d.alis))}` : ""}${x.d.stok!=null ? `, stok ${esc(fmt(x.d.stok,3))}` : ""}${x.d.barkod ? `, barkod ${esc(x.d.barkod)}` : ""}${x.d.kilo ? ", kiloyla satılır" : ""}${x.d.tedarikci ? `, tedarikçi ${esc(x.d.tedarikci)}` : ""}</li>` : `<li><b>${esc(x.urun)}</b> · ${ASK_LBL[x.alan]}: ${esc(askVal(x.alan, x.eski))} → <b>${esc(askVal(x.alan, x.yeni))}</b></li>`).join("")}</ul>
     <p class="small" style="margin:0 0 8px">Sen onaylamadan hiçbir şey değişmez.</p>
     <div class="row nowrap"><button type="button" class="primary" data-act="askApply" ${A.busy?"disabled":""}>Onayla ve uygula</button><button type="button" data-act="askCancel">Vazgeç</button></div></div>`;
 }
@@ -4306,6 +4352,18 @@ async function askApply(){
   A.busy = true; A.pending = []; render(true); const done = [], fail = [];
   for (const x of list){
     try{
+      if (x.tur==="satis"){ const sl = x.sale;
+        for (const q of sl.it){ if (!S.products.some(y=>y.id===q.p)) throw new Error("ürün yok"); }
+        await posMarkStart();
+        if (sl.pay==="veresiye"){ sl.ev = newId(); await store.addEvent({id:sl.ev, type:"borc", productId:"-", customerId:sl.c, amount:sl.tot, date:sl.d, saleId:sl.id, note:"Satış: " + sl.it.map(y=>y.n + (y.q!==1 ? " ×" + fmt(y.q,3) : "")).slice(0,4).join(", ") + (sl.it.length>4 ? " …" : "")}); }
+        await store.saveSale(sl); try{ nAfterSale(sl); }catch(_){}
+        done.push(x.ozet + " (yanlışsa Satış ekranından iptal edebilirsin)"); continue; }
+      if (x.tur==="sil"){ const p = S.products.find(q=>q.id===x.pid); if (!p){ fail.push(x.ozet); continue; }
+        await store.deleteProduct(p.id); done.push(x.ozet); continue; }
+      if (x.tur==="tahsilat"){ if (!S.customers[x.cid]){ fail.push(x.ozet); continue; }
+        await store.addEvent({id:newId(), type:x.tip, productId:"-", customerId:x.cid, amount:x.amt, date:nowIso(), note: x.tip==="odeme" ? "Asistan ile alındı" : "Asistan ile yazıldı"});
+        done.push(x.ozet); continue; }
+      if (x.tur==="kasa"){ await posMarkStart(); await store.saveCash(x.cash); try{ nAfterCash(x.cash); }catch(_){} done.push(x.ozet); continue; }
       if (x.yeniUrun){ const d = x.d;
         if (S.products.some(q=>norm(q.name)===norm(d.ad)) || (d.barkod && barcodeOwner(d.barkod))){ fail.push(x.urun + " (zaten var)"); continue; }
         await store.saveProduct({id:newId(), createdAt:nowIso(), aliases:[], outSince:null, recipe:null, name:d.ad, supplier:d.tedarikci||"", initialWeekly:0, intervalDays:7, caseSize:1,
@@ -4318,15 +4376,15 @@ async function askApply(){
       else if (x.alan==="ad") await store.saveProduct({...p, name:x.yeni});
       else await addCount(p, x.yeni);
       done.push(`${x.urun}: ${ASK_LBL[x.alan]} ${askVal(x.alan, x.eski)} → ${askVal(x.alan, x.yeni)}`);
-    }catch(_){ fail.push(x.urun); }
+    }catch(_){ fail.push(x.ozet || x.urun); }
   }
-  A.msgs.push({r:"a", t:(done.length ? "Uygulandı:\n" + done.join("\n") + "\n(Eski değerler yanda yazılı; gerekirse ürün ekranından geri alabilirsin.)" : "") + (fail.length ? (done.length ? "\n" : "") + "Yapılamadı: " + fail.join(", ") : "")});
+  A.msgs.push({r:"a", t:(done.length ? "Uygulandı:\n" + done.join("\n") + "" : "") + (fail.length ? (done.length ? "\n" : "") + "Yapılamadı: " + fail.join(", ") : "")});
   A.contents = []; A.busy = false; render(true); askScroll();
 }
 function kSor(){
   const A = askState();
   const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?", "En kârlı ürünlerim hangileri?", "Kasada ne kadar olmalı?"];
-  return noticeHtml() + `<p class="muted small" style="margin:6px 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Fiyat, ad ya da stok düzeltmesi önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
+  return noticeHtml() + `<p class="muted small" style="margin:6px 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Satış, yeni ürün, fiyat/stok düzeltmesi, veresiye ödemesi, kasa girişi-çıkışı ve ürün silme önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
     <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
     ${askPendingHtml(A)}${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
@@ -4420,8 +4478,8 @@ function viewSell(){
   // ---- sol: okutma + sepet ----
   let L = `<form id="posform" class="scanbar" autocomplete="off"><span class="scanico">${BARCODE_SVG}</span>
       <input id="pos-scan" autocomplete="off" autocapitalize="off" spellcheck="false" enterkeyhint="enter" placeholder="Barkod ya da ürün adı" aria-label="Barkod ya da ürün adı" value="${esc(S.posQ||"")}">
-      ${camBtn("pos","Kamera")}<button type="button" class="camBtn" data-act="vOpen" aria-label="Sesle söyle" title="Sesle söyle">🎤</button><button class="primary" type="submit" aria-label="Ekle">${ic("plus",20)}</button></form>
-    ${S.voice==="sat" ? voiceBox("sat", "Örn. 2 ekmek, 1 süt, Ahmet'e veresiye") : ""}
+      ${camBtn("pos","Kamera")}${isStaff() ? "" : `<button type="button" class="camBtn" data-act="vOpen" aria-label="Sesle söyle" title="Sesle söyle">🎤</button>`}<button class="primary" type="submit" aria-label="Ekle">${ic("plus",20)}</button></form>
+    ${S.voice==="sat" && !isStaff() ? voiceBox("sat", "Örn. 2 ekmek, 1 süt, Ahmet'e veresiye") : ""}
     <div id="pos-res">${S.posQ ? posResults(S.posQ) : ""}</div>`;
   if (S.posErr) L += `<div class="notice bad">${esc(S.posErr)}</div>`;
   if (S.posWarn) L += `<div class="notice warn">${esc(S.posWarn)}</div>`;
