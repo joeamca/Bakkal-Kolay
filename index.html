@@ -4170,6 +4170,22 @@ function askTool(name, a){
       const L = ids.map(id=>({n:supName(id), s:supStats(id)})).filter(x=>x.s.bal > 0.005 && (!t || norm(x.n).includes(t))).sort((x,y)=>y.s.bal - x.s.bal);
       return {toplam_borc:q2(L.reduce((s,x)=>s+x.s.bal, 0)), tedarikciler:L.slice(0, 10).map(x=>({tedarikci:x.n, borc:q2(x.s.bal), en_eski_borc_gun:x.s.oldest ? Math.round(x.s.ageDays) : null, vadesi_geldi:x.s.due}))};
     }
+    if (name==="duzeltme_oner"){
+      const A = askState(), L = posSearch(String(a.urun||""));
+      if (L.length !== 1) return {hata: L.length ? "Birden çok ürün eşleşti: " + L.slice(0, 5).map(p=>p.name).join(", ") + ". Kullanıcıya hangisi olduğunu sor." : "Bu adla ürün bulunamadı."};
+      const p = L[0], alan = String(a.alan||"");
+      if (!["satis_fiyati","alis_fiyati","ad","stok_sayim"].includes(alan)) return {hata:"Bu alan değiştirilemez."};
+      let yeni, eski;
+      if (alan==="ad"){ yeni = String(a.deger||"").replace(/[\u0000-\u001f]/g," ").trim().slice(0, 80); if (yeni.length < 2) return {hata:"Geçersiz ad."}; eski = p.name; }
+      else { yeni = Number(String(a.deger).replace(",", ".")); if (!Number.isFinite(yeni) || yeni < 0 || yeni > 1e6) return {hata:"Geçersiz sayı."};
+        if (alan!=="stok_sayim") yeni = r2(yeni); else yeni = r3(yeni);
+        if (alan==="satis_fiyati" && !(yeni > 0)) return {hata:"Satış fiyatı sıfırdan büyük olmalı."};
+        eski = alan==="satis_fiyati" ? (p.salePrice ?? null) : alan==="alis_fiyati" ? (p.buyPrice ?? null) : pCur(p); }
+      A.pending = (A.pending||[]).filter(x=>!(x.pid===p.id && x.alan===alan));
+      if (A.pending.length >= 10) return {hata:"Tek seferde en fazla 10 değişiklik önerilebilir."};
+      A.pending.push({pid:p.id, urun:p.name, alan, eski, yeni});
+      return {durum:"onay_bekliyor", urun:p.name, alan, eski, yeni, not:"Kayıt henüz değişmedi; kullanıcı kutudan onaylayınca uygulanır."};
+    }
     if (name==="veresiye"){
       const cs = Object.values(S.customers||{});
       if (a.musteri){ const n = norm(String(a.musteri)); const L = cs.filter(c=>c.name && norm(c.name).includes(n)).slice(0, 5);
@@ -4183,6 +4199,7 @@ function askTool(name, a){
 async function askRun(q){
   const A = askState(); q = String(q||"").trim(); if (q.length < 2 || A.busy) return;
   if (S.mode!=="cloud" || !S.cloud?.shop){ A.err = "Bunun için hesabınla giriş yapman gerekir."; render(true); return; }
+  A.pending = [];
   if (A.contents.length > 10) A.contents = [];          // konuşma uzadıysa temiz başla (ekrandaki yazılar kalır)
   A.busy = true; A.err = ""; A.msgs.push({r:"u", t:q}); A.contents.push({role:"user", parts:[{text:q}]}); render(true); askScroll();
   try{
@@ -4202,13 +4219,38 @@ async function askRun(q){
   A.busy = false; render(true); askScroll();
 }
 const askScroll = () => setTimeout(()=>{ try{ window.scrollTo(0, document.body.scrollHeight); document.getElementById("ask-q")?.focus(); }catch(_){} }, 30);
+const ASK_LBL = {satis_fiyati:"Satış fiyatı", alis_fiyati:"Alış fiyatı", ad:"Ad", stok_sayim:"Stok sayımı"};
+const askVal = (alan, v) => v==null ? "yok" : alan==="ad" ? `“${v}”` : alan==="stok_sayim" ? fmt(v,3) : TLx(v);
+function askPendingHtml(A){
+  if (!A.pending || !A.pending.length) return "";
+  return `<div class="notice warn askpend"><b>Onayını bekliyor (${A.pending.length} değişiklik)</b><ul style="margin:6px 0 8px;padding-left:18px">${A.pending.map(x=>`<li><b>${esc(x.urun)}</b> · ${ASK_LBL[x.alan]}: ${esc(askVal(x.alan, x.eski))} → <b>${esc(askVal(x.alan, x.yeni))}</b></li>`).join("")}</ul>
+    <p class="small" style="margin:0 0 8px">Sen onaylamadan hiçbir şey değişmez.</p>
+    <div class="row nowrap"><button type="button" class="primary" data-act="askApply" ${A.busy?"disabled":""}>Onayla ve uygula</button><button type="button" data-act="askCancel">Vazgeç</button></div></div>`;
+}
+async function askApply(){
+  const A = askState(); const list = A.pending || []; if (!list.length || A.busy) return;
+  if (isStaff()){ A.err = "Bu değişiklikleri sadece dükkân sahibi yapabilir."; A.pending = []; render(true); return; }
+  A.busy = true; A.pending = []; render(true); const done = [], fail = [];
+  for (const x of list){
+    try{
+      const p = S.products.find(q=>q.id===x.pid); if (!p){ fail.push(x.urun); continue; }
+      if (x.alan==="satis_fiyati") await store.saveProduct({...p, salePrice:x.yeni, salePriceAt: nowIso()});
+      else if (x.alan==="alis_fiyati") await store.saveProduct({...p, buyPrice:x.yeni});
+      else if (x.alan==="ad") await store.saveProduct({...p, name:x.yeni});
+      else await addCount(p, x.yeni);
+      done.push(`${x.urun}: ${ASK_LBL[x.alan]} ${askVal(x.alan, x.eski)} → ${askVal(x.alan, x.yeni)}`);
+    }catch(_){ fail.push(x.urun); }
+  }
+  A.msgs.push({r:"a", t:(done.length ? "Uygulandı:\n" + done.join("\n") + "\n(Eski değerler yanda yazılı; gerekirse ürün ekranından geri alabilirsin.)" : "") + (fail.length ? (done.length ? "\n" : "") + "Yapılamadı: " + fail.join(", ") : "")});
+  A.contents = []; A.busy = false; render(true); askScroll();
+}
 function kSor(){
   const A = askState();
   const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?", "En kârlı ürünlerim hangileri?", "Kasada ne kadar olmalı?"];
   return noticeHtml() + backLink() + `<h2 style="margin:6px 0 4px">Asistana Sor</h2>
-    <p class="muted small" style="margin:0 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Hiçbir kaydı değiştirmez, sadece okur.</p>
+    <p class="muted small" style="margin:0 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Fiyat, ad ya da stok düzeltmesi önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
     <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
-    ${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
+    ${askPendingHtml(A)}${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz ya da söyle…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}>${SpeechR ? `<button type="button" class="vmic" data-act="askMic" aria-label="Konuş" ${A.busy?"disabled":""}>🎤</button>` : ""}<button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
     ${A.msgs.length ? `<button class="link" type="button" data-act="askNew">Yeni konuşma</button>` : ""}
@@ -4217,6 +4259,8 @@ function kSor(){
 document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.target.closest("[data-act^='ask']"); if (!t) return;
   if (t.dataset.act==="askQ") askRun(t.dataset.q);
   else if (t.dataset.act==="askMic") voiceMic("ask-q", t, () => { const el = document.getElementById("ask-q"); if (el && el.value.trim().length > 1){ const q = el.value; el.value = ""; askRun(q); } });
+  else if (t.dataset.act==="askApply") askApply();
+  else if (t.dataset.act==="askCancel"){ const A = askState(); A.pending = []; A.contents = []; A.msgs.push({r:"a", t:"Vazgeçildi, hiçbir şey değişmedi."}); render(true); }
   else if (t.dataset.act==="askNew"){ S.ask = null; render(true); }
 });
 document.addEventListener("submit", ev=>{ if (ev.target.id!=="askform") return; ev.preventDefault(); const el = document.getElementById("ask-q"); const q = el ? el.value : ""; if (el) el.value = ""; askRun(q); });

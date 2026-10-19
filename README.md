@@ -58,7 +58,7 @@ Satış ekranında 🎤 düğmesi: "2 ekmek, 1 süt, Ahmet'e veresiye" gibi bir 
 
 ## Asistana Sor
 
-Diğer İşler > **Asistana Sor** (sadece dükkân sahibi): "Bugün ne kadar sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?" gibi sorular yazılır. Gemini "araç çağırma" ile uygulamadaki okuma işlevlerini (satış özeti, en çok satanlar, stok, veresiye) sırayla çağırır ve cevabı yazar. Araçlar telefonda çalışır, hiçbir kaydı değiştirmez; adım sınırı 5. Gemini'ye sorunla ilgili rakamlar ve ürün/müşteri adları gider, telefon numaraları gitmez. Satış bilgisi son 30 günü kapsar. Her adım, sesli komutun günlük 150 çağrılık hakkından sayılır.
+Diğer İşler > **Asistana Sor** (sadece dükkân sahibi): "Bugün ne kadar sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?" gibi sorular yazılır. Gemini "araç çağırma" ile uygulamadaki okuma işlevlerini (satış özeti, en çok satanlar, stok, veresiye) sırayla çağırır ve cevabı yazar. Okuma araçları: satış özeti, günlük satış, en çok satanlar, en kârlı, stok, ürün bilgisi (kaç gün yeter dahil), kasa, fire, sipariş önerisi, veresiye, tedarikçi borcu. Mikrofon düğmesiyle sesli sorulabilir. **Düzeltme önerisi:** Gemini bir ürünün satış/alış fiyatını, adını ya da stok sayımını *önerebilir* (`duzeltme_oner`); öneri ekranda "eski → yeni" listesiyle onay kutusunda görünür, hiçbir şey sen "Onayla ve uygula"ya basmadan değişmez (sadece dükkân sahibi; veresiye, kasa, satış, silme önerilemez). Araçlar telefonda çalışır; adım sınırı 5. Gemini'ye sorunla ilgili rakamlar ve ürün/müşteri adları gider, telefon numaraları gitmez. Satış bilgisi son 30 günü kapsar. Her adım, sesli komutun günlük 150 çağrılık hakkından sayılır.
 
 ## Duyuru ve "Kendin Anlat"
 
