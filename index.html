@@ -3141,13 +3141,14 @@ function subscribe(){
 async function loadPeople(){ if (!C.shop || !SB) return; try{ const {data, error} = await SB.rpc("shop_members", {p_shop:C.shop.id}); if (!error){ C.people = data||[]; C.peopleAt = Date.now(); cloudSave(); } }catch(_){} }
 /* Çalışan (staff) yetkisi: kasa, kâr, rapor, duyuru ve yedek ekranlarını görmez */
 const STAFF_NO = new Set(["fire","hareket","kar","k-kar","rapor","kasa","k-kasa","maliyet","plan","duyuru","sor"]);
-/* Çırak modu: sahip, telefonu çırağa bırakırken uygulamayı çırak görünümüne alır; sahibe dönmek için PIN gerekir. */
-const cirakKey = () => C.user ? "bd-cirak-" + C.user.id : null;
-function cirakOn(){ if (S.mode!=="cloud" || !C.user) return false; if (C._ck===undefined){ try{ C._ck = localStorage.getItem(cirakKey())==="1"; }catch(_){ C._ck = false; } } return !!C._ck; }
-function cirakSet(on){ C._ck = !!on; try{ const k = cirakKey(); if (k){ if (on) localStorage.setItem(k, "1"); else localStorage.removeItem(k); } }catch(_){} }
+/* Çırak modu: sahip telefonu çırağa bırakırken telefon çırağın KENDİ oturumuna geçer (sunucu çırak olarak görür); sahibe dönüş sunucuda PIN ile yapılır. */
+const CIRAK_KEY = "bd-cirak-gecis";
+function cirakMark(){ try{ return JSON.parse(localStorage.getItem(CIRAK_KEY)||"null"); }catch(_){ return null; } }
+function cirakOn(){ if (!C.user) return false; const m = cirakMark(); return !!m && m.staff===C.user.id; }
+function cirakSet(m){ try{ if (m) localStorage.setItem(CIRAK_KEY, JSON.stringify(m)); else localStorage.removeItem(CIRAK_KEY); }catch(_){} }
 function isStaff(){
   if (S.mode!=="cloud" || !C.shop) return false;
-  if (cirakOn()) return true; const x = C.ctx || {}; if (x.is_admin) return false;
+  const x = C.ctx || {}; if (x.is_admin) return false;
   const me = (x.shops||[]).find(s=>s.id===C.shop.id); return !!me && me.role==="staff";
 }
 
@@ -3243,7 +3244,7 @@ async function cloudBoot(){
     C.user = {id:c.uid}; C.ctx = c.ctx; C.shop = c.shop; C.queue = c.queue||[]; C.lastSync = c.lastSync||null; C.by = c.by||{}; C.people = c.people||[]; S.perm = c.perm||{};
     const d = c.data||{}; S.products = d.products||[]; S.events = d.events||[]; S.suppliers = d.suppliers||{}; S.customers = d.customers||{}; if (d.settings) S.settings = d.settings;
     S.sales = d.sales||[]; S.cash = d.cash||[]; C.posOld = c.posOld||null; salesTouch(); prunePos();
-    setStore(cloudStore()); S.mode = c.ctx?.must_change ? "newpass" : c.ctx?.has_pin===false ? "setpin" : c.shop?.active===false ? "paused" : "cloud";
+    setStore(cloudStore()); S.mode = cirakOn() ? "cloud" : c.ctx?.must_change ? "newpass" : c.ctx?.has_pin===false ? "setpin" : c.shop?.active===false ? "paused" : "cloud";
     if (c.admin){ S.admin = true; C.shop = null; C.ready = true; S.guide = false; if (!String(S.tab).startsWith("y-")) S.tab = "y-ozet"; }
     checkLock(true); render(); saving();
   } else { S.mode = "loading"; render(); }
@@ -3264,15 +3265,16 @@ async function cloudBoot(){
 async function afterLogin(user){
   if (C.user && C.user.id!==user.id){ const keep = {loginErr:null}; C = Object.assign(newC(), keep); S.cloud = C; clearData(); }
   C.user = {id:user.id};
+  { const cm = cirakMark(); if (cm && cm.staff!==user.id) cirakSet(null); }   // başka biri girdiyse çırak işareti geçersiz
   const {data:ctx, error} = await SB.rpc("my_context"); if (error) throw error;
   if (!ctx) throw new Error("Hesap bilgisi bulunamadı. Yöneticiye haber ver.");
   C.ctx = ctx; SB.rpc("touch").then(()=>{}, ()=>{});
   if (C.recovery){ S.locked = false; S.mode = "recover"; render(); return; }      // e-postadaki bağlantıyla geldi: yeni şifre
-  if (ctx.must_change){                                           // tek kullanımlık şifre: önce kendi şifresini koysun
+  if (ctx.must_change && !cirakOn()){                                           // tek kullanımlık şifre: önce kendi şifresini koysun
     if (!(ctx.temp_left > 0) && ctx.temp_left !== undefined && ctx.temp_left !== null){ C.loginErr = "Tek kullanımlık şifrenin 5 dakikalık süresi doldu. Yöneticiden ya da dükkân sahibinden yeni şifre iste."; await doLogout(true); return; }
     C.tempDeadline = ctx.temp_left > 0 ? Date.now() + ctx.temp_left*1000 : null; S.mode = "newpass"; render(); return; }
   pinSync();
-  if (ctx.has_pin === false || (ctx.has_pin && needRenew())){ S.locked = false; S.mode = "setpin"; render(); return; }   // ilk kullanımda (ya da PIN unutulunca) PIN zorunlu
+  if (!cirakOn() && (ctx.has_pin === false || (ctx.has_pin && needRenew()))){ S.locked = false; S.mode = "setpin"; render(); return; }   // ilk kullanımda (ya da PIN unutulunca) PIN zorunlu
   try{ if (localStorage.getItem(RENEW_KEY)) setRenew(false); }catch(_){}
   if (ctx.is_admin && adminView()!=="shop"){ enterAdmin(); return; }               // yönetici: kendi ekranı (bakkal ekranı değil)
   S.admin = false;
@@ -3419,7 +3421,7 @@ function viewSetPin(){
     <button class="primary" data-act="pinGateSave">PIN'i Kaydet ve Devam Et</button><button data-act="logout">Çıkış Yap</button></div>`;
 }
 function viewLock(){
-  const cfg = pinCfg() || {}, wait = Math.max(cfg.coolUntil||0, S.pinCoolUntil||0) - Date.now(), cool = wait > 0, n = (S.pinBuf||"").length;
+  const cfg = S.pinExitCirak ? {} : (pinCfg() || {}), wait = Math.max(cfg.coolUntil||0, S.pinCoolUntil||0) - Date.now(), cool = wait > 0, n = (S.pinBuf||"").length;
   const keys = ["1","2","3","4","5","6","7","8","9","","0","del"];
   return `<div class="card stack login lockcard">
     <div class="stack" style="gap:4px;text-align:center"><span class="bi c1" style="margin:0 auto">${ic("user",26)}</span><h2>${S.pinExitCirak ? "Sahip girişi" : "Kilitli"}</h2><span class="small muted kbdhint">PIN'i klavyeden de yazabilirsin.</span>
@@ -3429,7 +3431,7 @@ function viewLock(){
     <div class="pinpad">${keys.map(k => k==="" ? `<span></span>` : `<button class="pk" data-act="pinKey" data-k="${k}" ${cool||S.pinBusy?"disabled":""} aria-label="${k==="del"?"Sil":k}">${k==="del" ? "⌫" : k}</button>`).join("")}</div>
     ${S.pinForgot ? `<p class="notice bad">${C.queue.length} kayıt henüz internete gönderilmedi. Şimdi çıkarsan kaybolur. Önce internete bağlanıp bekle.</p>
         <div class="row"><button data-act="pinForgotCancel">Vazgeç</button><button class="danger" data-act="pinForgotForce">Yine de Çık</button></div>`
-      : `${S.pinExitCirak ? `<button data-act="cirakStay">Vazgeç, çırak modunda kal</button>` : ""}<button class="link" data-act="pinForgot">PIN'imi Unuttum (Şifreyle Gir, Yeni PIN Seç)</button>`}
+      : S.pinExitCirak ? `<button data-act="cirakStay">Vazgeç, çırak modunda kal</button>` : `<button class="link" data-act="pinForgot">PIN'imi Unuttum (Şifreyle Gir, Yeni PIN Seç)</button>`}
   </div>`;
 }
 function pinCard(){
@@ -3442,7 +3444,11 @@ function pinCard(){
     <p class="small">Uygulama <select id="pin-mins-live" data-pinmins="1" aria-label="Kilit süresi" style="display:inline-block;width:auto;min-height:36px;padding:4px 8px">${PIN_MINS.map(([v,l])=>`<option value="${v}" ${v===pinMins()?"selected":""}>${l}</option>`).join("")}</select> kullanılmazsa kilitlenir; açmak için PIN'in sorulur.</p>
     <p class="small muted">PIN hesabına özel, her telefonda aynı. 5 kez yanlış girilirse hesaptan çıkılır; kullanıcı adı ve şifreyle girip yeni PIN seçilir.</p>
     <div class="row"><button data-act="pinLockNow">Şimdi Kilitle</button><button data-act="pinSetupOpen">PIN'i Değiştir</button></div>
-    <div class="stack" style="gap:6px;margin-top:8px"><p class="small muted">Telefonu çırağa bırakıyorsan: uygulama çırak görünümüne geçer (kasa, kâr, rapor, yapay zekâ ve ayarlar kapanır). Sahibe dönmek için bu PIN gerekir.</p><button class="primary" data-act="cirakOn">Çırak Moduna Geç</button></div></section>`;
+    ${S.cirakPick ? `<div class="stack" style="gap:8px;margin-top:8px"><b>Hangi çırağın hesabına geçilsin?</b>
+      ${S.cirakPick.map(x=>`<label class="check"><input type="radio" name="ck-s" data-act="cirakSec" data-id="${x.user_id}" ${S.cirakSel===x.user_id?"checked":""}> ${esc(x.full_name||x.username)}</label>`).join("")}
+      <p class="small muted">Telefon çırağın kendi hesabına geçer (çırağın göreceği her şey ve yetkileri aynen geçerli). Senin hesabına dönmek için PIN'in gerekir.</p>
+      <div class="row"><button class="primary" data-act="cirakGecOnay">Çırak Moduna Geç</button><button data-act="cirakIptal">Vazgeç</button></div></div>`
+    : `<div class="stack" style="gap:6px;margin-top:8px"><p class="small muted">Telefonu çırağa bırakıyorsan: telefon çırağın kendi hesabına geçer, sen ancak PIN'inle geri dönersin.</p><button class="primary" data-act="cirakGec">Çırak Moduna Geç</button></div>`}</section>`;
 }
 async function savePin(p1, mins){
   const {data, error} = await SB.rpc("set_my_pin", mins ? {p_pin:p1, p_mins:mins} : {p_pin:p1});
@@ -3475,12 +3481,59 @@ async function pinAct(a, t){
     catch(e){ S.msg = {kind:"bad", text: isNetErr(e) ? "PIN değiştirmek için internet gerekiyor." : sbMsg(e)}; }
     render(); window.scrollTo(0,0); return true; }
   if (a==="pinLockNow"){ if (pinOn()) lockNow(); return true; }
-  if (a==="cirakOn"){ if (!pinOn() || isStaff()) return true; cirakSet(true); S.tab = window.KOLAY ? "k-ana" : "ana"; S.pm = null; S.ask = null; S.voice = null; S.msg = {kind:"ok", text:"Çırak modundasın. Sahibe dönmek için üstteki \"Sahibe Dön\" düğmesine bas; PIN sorulur."}; render(); window.scrollTo(0,0); return true; }
+  if (a==="cirakGec"){ if (!pinOn() || isStaff()) return true;
+    await loadPeople(); const L = (C.people||[]).filter(x=>x.role==="staff");
+    if (!L.length){ S.msg = {kind:"bad", text:"Çırak moduna geçmek için önce Ayarlar'dan bir çırak hesabı ekle."}; render(true); return true; }
+    S.cirakPick = L; S.cirakSel = L[0].user_id; render(true); return true; }
+  if (a==="cirakSec"){ S.cirakSel = t.dataset.id; render(true); return true; }
+  if (a==="cirakIptal"){ S.cirakPick = null; render(true); return true; }
+  if (a==="cirakGecOnay"){
+    if (C.queue.length){ S.msg = {kind:"bad", text:`${C.queue.length} kayıt henüz internete gönderilmedi. Önce internete bağlanıp bekle, sonra çırak moduna geç.`}; render(true); return true; }
+    if (!SB || C.online===false || navigator.onLine===false){ S.msg = {kind:"bad", text:"Çırak moduna geçmek için internet gerekiyor."}; render(true); return true; }
+    const staffId = S.cirakSel, ownerId = C.user.id, shopId = C.shop.id; if (!staffId) return true;
+    t.disabled = true; let switched = false;
+    try{
+      const {data, error} = await SB.functions.invoke("cirak", {body:{action:"gir", shop_id:shopId, staff_id:staffId}});
+      if (error || !data?.token_hash) throw new Error(data?.error || "Geçilemedi. İnterneti kontrol edip tekrar dene.");
+      pinSave(null); C.leaving = true;                       // sahibin telefondaki PIN kopyası ve önbelleği silinir
+      const r = await SB.auth.verifyOtp({token_hash:data.token_hash, type:"magiclink"}); if (r.error) throw r.error;
+      switched = true;
+      const bg = await SB.functions.invoke("cirak", {body:{action:"bagla", nonce:data.nonce}}); if (bg.error || !bg.data?.ok) throw new Error("Bağlanamadı.");
+      cirakSet({staff:staffId, owner:ownerId, shop:shopId});
+      C.user = null; try{ localStorage.removeItem(BKEY); }catch(_){}
+      location.reload();
+    }catch(e){
+      C.leaving = false;
+      if (switched){ C.loginErr = "Çırak moduna geçiş tamamlanamadı. Şifrenle tekrar gir."; await doLogout(true); return true; }
+      S.msg = {kind:"bad", text: (e && e.message) || "Geçilemedi."}; S.cirakPick = null; render(true);
+    }
+    return true; }
   if (a==="cirakExit"){ if (!cirakOn()) return true; S.pinExitCirak = true; S.locked = true; S.pinBuf = ""; S.pinErr = null; S.pinForgot = false; render(); return true; }
   if (a==="cirakStay"){ S.pinExitCirak = false; S.locked = false; S.pinBuf = ""; S.pinErr = null; render(); return true; }
   if (a==="pinForgot"){ if (C.queue.length){ S.pinForgot = true; render(); return true; } setRenew(true); C.loginErr = "Kullanıcı adın ve şifrenle gir; sonra yeni PIN seçeceksin."; await doLogout(true); return true; }
   if (a==="pinForgotCancel"){ S.pinForgot = false; render(); return true; }
   if (a==="pinForgotForce"){ setRenew(true); C.loginErr = "Kullanıcı adın ve şifrenle gir; sonra yeni PIN seçeceksin."; await doLogout(true); return true; }
+  if (a==="pinKey" && S.pinExitCirak){
+    if (Math.max(S.pinCoolUntil||0) > Date.now() || S.pinBusy) return true;
+    const k = t.dataset.k; S.pinErr = null;
+    if (k==="del"){ S.pinBuf = (S.pinBuf||"").slice(0,-1); render(); return true; }
+    if ((S.pinBuf||"").length >= 4) return true;
+    S.pinBuf = (S.pinBuf||"") + k; render();
+    if (S.pinBuf.length < 4) return true;
+    const pin = S.pinBuf; S.pinBuf = ""; S.pinBusy = true; render();
+    try{
+      const {data, error} = await SB.functions.invoke("cirak", {body:{action:"don", pin}});
+      if (error || !data) throw error || new Error("yanıt yok");
+      if (data.ok && data.token_hash){
+        C.leaving = true; const r = await SB.auth.verifyOtp({token_hash:data.token_hash, type:"magiclink"}); if (r.error) throw r.error;
+        cirakSet(null); S.pinExitCirak = false; S.pinBusy = false; C.user = null; try{ localStorage.removeItem(BKEY); }catch(_){}
+        markActive(true); location.reload(); return true; }
+      S.pinBusy = false;
+      if (data.reason==="cool" || data.reason==="max"){ S.pinCoolUntil = Date.now() + (data.wait||300)*1000; S.pinErr = null; }
+      else if (data.reason==="wrong") S.pinErr = `PIN yanlış. ${data.left ?? ""} hakkın kaldı.`;
+      else S.pinErr = data.error || "Olmadı.";
+    }catch(e){ C.leaving = false; S.pinBusy = false; S.pinErr = isNetErr(e) ? "Sahibe dönmek için internet gerekiyor." : "Olmadı, tekrar dene."; }
+    render(); return true; }
   if (a==="pinKey"){
     if (!pinOn()){ S.locked = false; render(); return true; }
     const cfg = pinCfg();
@@ -3491,7 +3544,7 @@ async function pinAct(a, t){
     S.pinBuf = (S.pinBuf||"") + k; render();
     if (S.pinBuf.length < 4) return true;
     const pin = S.pinBuf; S.pinBuf = "";
-    const unlock = () => { S.locked = false; S.pinCoolUntil = 0; markActive(true); if (S.pinExitCirak){ S.pinExitCirak = false; cirakSet(false); S.tab = "k-ana"; S.msg = {kind:"ok", text:"Sahip moduna döndün."}; } render(); };
+    const unlock = () => { S.locked = false; S.pinCoolUntil = 0; markActive(true); render(); };
     // 1) internet varsa sunucuda doğrula (deneme sayısı da orada tutulur)
     let r = null;
     if (SB && C.online !== false && navigator.onLine !== false){
