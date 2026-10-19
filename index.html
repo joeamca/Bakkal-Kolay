@@ -4033,15 +4033,15 @@ function posFocus(){ setTimeout(()=>{ if (S.posEditK) return; const a = document
 const SpeechR = window.SpeechRecognition || window.webkitSpeechRecognition;
 let voiceRec = null;
 function voiceStop(){ try{ voiceRec && voiceRec.stop(); }catch(_){} voiceRec = null; }
-function voiceMic(inputId, btn){
+function voiceMic(inputId, btn, after){
   if (!SpeechR) return;
   if (voiceRec){ voiceStop(); return; }
   const el = document.getElementById(inputId); if (!el) return;
   const rec = new SpeechR(); rec.lang = "tr-TR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
   const base = el.value.trim(), done = () => { voiceRec = null; if (btn) btn.classList.remove("rec"); };
   rec.onresult = e => { let t = ""; for (const r of e.results) t += r[0].transcript; el.value = (base ? base + " " : "") + t; };
-  rec.onend = done;
-  rec.onerror = e => { done(); const m = document.getElementById("v-msg"); if (m) m.textContent = e.error==="not-allowed" ? "Mikrofon izni verilmedi. Klavyedeki mikrofon düğmesini kullanabilirsin." : "Ses alınamadı. Tekrar dene ya da yaz."; };
+  rec.onend = () => { done(); if (after) after(); };
+  rec.onerror = e => { done(); const m = document.getElementById("v-msg") || document.getElementById("ask-msg"); if (m) m.textContent = e.error==="not-allowed" ? "Mikrofon izni verilmedi. Klavyedeki mikrofon düğmesini kullanabilirsin." : "Ses alınamadı. Tekrar dene ya da yaz."; };
   voiceRec = rec; if (btn) btn.classList.add("rec");
   try{ rec.start(); }catch(_){ done(); }
 }
@@ -4135,6 +4135,41 @@ function askTool(name, a){
       const all = stockP().filter(p=>{ const k = stockStatus(p, stats(p)).k; return k==="low" || k==="out"; });
       return {toplam:all.length, urunler:all.slice(0, 25).map(row)};
     }
+    if (name==="urun_bilgi"){
+      const L = posSearch(String(a.urun||"")).slice(0, 3);
+      return L.length ? {urunler:L.map(p=>{ const st = stats(p), m = st.money, s = stockStatus(p, st);
+        return {urun:p.name, satis_fiyati:m.sale, alis_fiyati:m.buy, birim_kar:m.unit!=null ? q2(m.unit) : null, kar_orani_yuzde:m.margin!=null ? Math.round(m.margin*100) : null,
+          haftalik_satis:r3(st.weekly), stok:s.cur.known ? r3(s.cur.v) : "bilinmiyor", durum:s.t, tedarikci:p.supplier||null, onerilen_siparis:st.q||0,
+          haftalik_kar:m.weekProfit!=null ? q2(m.weekProfit) : null, fire_son4hafta:r3(m.fireW||0)}; })} : {urunler:[], not:"Bu adla ürün bulunamadı."};
+    }
+    if (name==="gunluk_satis"){
+      const g = Math.min(30, Math.max(1, Math.round(Number(a.gun)||7))), to = today0() + DAY, d = reportLocal(to - g*DAY, to, "day");
+      return {gun:g, gunler:d.periods.map(x=>({tarih:x.k, ciro:q2(x.ciro), fis:x.fis}))};
+    }
+    if (name==="kasa"){
+      const k = kasaDay(today0());
+      return {acilis_yapildi:k.acilisSet, acilis:q2(k.acilis), nakit_satis:q2(k.nakit), kart_satis:q2(k.kart), veresiye_satis:q2(k.veresiye), tahsilat:q2(k.tahsilat),
+        kasaya_giris:q2(k.giris), kasadan_cikis:q2(k.cikis), kasada_olmasi_gereken:q2(k.beklenen), fis:k.fis, iade:q2(k.iade), kapanis_yapildi:!!k.kap};
+    }
+    if (name==="fire_kayip"){
+      const L = stockP().map(p=>({p, m:stats(p).money})).filter(x=>x.m.fireW>0).sort((x,y)=>(y.m.fireLossW||0)-(x.m.fireLossW||0)).slice(0, 10);
+      return {aciklama:"Son 4 haftanın firesi", urunler:L.map(x=>({urun:x.p.name, fire_adet:r3(x.m.fireW), haftalik_zarar_tl:x.m.fireLossW!=null ? q2(x.m.fireLossW) : null}))};
+    }
+    if (name==="siparis_onerisi"){
+      const t = a.tedarikci ? norm(String(a.tedarikci)) : "";
+      const L = stockP().map(p=>({p, st:stats(p)})).filter(x=>x.st.q>0 && (!t || norm(x.p.supplier||"").includes(t))).sort((x,y)=>(x.p.supplier||"").localeCompare(y.p.supplier||"","tr") || x.p.name.localeCompare(y.p.name,"tr"));
+      return {toplam:L.length, urunler:L.slice(0, 30).map(x=>({urun:x.p.name, adet:x.st.q, tedarikci:x.p.supplier||null}))};
+    }
+    if (name==="en_karli"){
+      const g = Math.min(30, Math.max(1, Math.round(Number(a.gun)||30))), to = today0() + DAY, d = reportLocal(to - g*DAY, to, "day");
+      const L = d.products.filter(p=>!p.eksik && p.ciro>0).map(p=>({urun:p.n, kar:q2(p.ciro - p.maliyet), adet:r3(p.q)})).sort((x,y)=>y.kar - x.kar).slice(0, 10);
+      return {gun:g, aciklama:"Sadece alış fiyatı bilinen ürünler", urunler:L};
+    }
+    if (name==="tedarikci_borc"){
+      const ids = Object.keys(S.suppliers||{}), t = a.tedarikci ? norm(String(a.tedarikci)) : "";
+      const L = ids.map(id=>({n:supName(id), s:supStats(id)})).filter(x=>x.s.bal > 0.005 && (!t || norm(x.n).includes(t))).sort((x,y)=>y.s.bal - x.s.bal);
+      return {toplam_borc:q2(L.reduce((s,x)=>s+x.s.bal, 0)), tedarikciler:L.slice(0, 10).map(x=>({tedarikci:x.n, borc:q2(x.s.bal), en_eski_borc_gun:x.s.oldest ? Math.round(x.s.ageDays) : null, vadesi_geldi:x.s.due}))};
+    }
     if (name==="veresiye"){
       const cs = Object.values(S.customers||{});
       if (a.musteri){ const n = norm(String(a.musteri)); const L = cs.filter(c=>c.name && norm(c.name).includes(n)).slice(0, 5);
@@ -4169,18 +4204,19 @@ async function askRun(q){
 const askScroll = () => setTimeout(()=>{ try{ window.scrollTo(0, document.body.scrollHeight); document.getElementById("ask-q")?.focus(); }catch(_){} }, 30);
 function kSor(){
   const A = askState();
-  const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?"];
+  const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?", "En kârlı ürünlerim hangileri?", "Kasada ne kadar olmalı?"];
   return noticeHtml() + backLink() + `<h2 style="margin:6px 0 4px">Asistana Sor</h2>
     <p class="muted small" style="margin:0 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Hiçbir kaydı değiştirmez, sadece okur.</p>
     <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
-    ${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}
+    ${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
-    <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}><button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
+    <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz ya da söyle…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}>${SpeechR ? `<button type="button" class="vmic" data-act="askMic" aria-label="Konuş" ${A.busy?"disabled":""}>🎤</button>` : ""}<button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
     ${A.msgs.length ? `<button class="link" type="button" data-act="askNew">Yeni konuşma</button>` : ""}
-    <p class="muted small">Cevap için sorunla ilgili rakamlar ve ürün/müşteri adları Google Gemini'ye gönderilir; telefon numaraları gönderilmez. Satış bilgisi son 30 günü kapsar.</p>`;
+    <p class="muted small">Cevap için sorunla ilgili rakamlar ve ürün, müşteri ve tedarikçi adları Google Gemini'ye gönderilir; telefon numaraları gönderilmez. Satış bilgisi son 30 günü kapsar.</p>`;
 }
 document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.target.closest("[data-act^='ask']"); if (!t) return;
   if (t.dataset.act==="askQ") askRun(t.dataset.q);
+  else if (t.dataset.act==="askMic") voiceMic("ask-q", t, () => { const el = document.getElementById("ask-q"); if (el && el.value.trim().length > 1){ const q = el.value; el.value = ""; askRun(q); } });
   else if (t.dataset.act==="askNew"){ S.ask = null; render(true); }
 });
 document.addEventListener("submit", ev=>{ if (ev.target.id!=="askform") return; ev.preventDefault(); const el = document.getElementById("ask-q"); const q = el ? el.value : ""; if (el) el.value = ""; askRun(q); });
