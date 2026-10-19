@@ -5576,6 +5576,25 @@ function dyImg(){
   const d = dyState(); if (!window.Duyuru || !d.type) return "";
   try { return Duyuru.dataUrl(d.type, d.v, d.theme, dyCtx()); } catch(_){ return ""; }
 }
+// Kendin Anlat kalan hak (sunucudan): doluysa ekranda söylenir, düğme kapanır
+const dyBlocked = d => !!(d.kalan && (!d.kalan.enabled || d.kalan.daily_left <= 0 || d.kalan.monthly_left <= 0));
+function dyKalanHtml(){
+  const k = dyState().kalan; if (!k) return "";
+  if (!k.enabled) return `<div class="notice warn" style="margin-top:8px">Bu özellik şu an kapalı.</div>`;
+  if (k.daily_left <= 0) return `<div class="notice warn" style="margin-top:8px">Bugünlük hakkın doldu (${k.daily} üretim). Yarın tekrar dene.</div>`;
+  if (k.monthly_left <= 0) return `<div class="notice warn" style="margin-top:8px">Bu ayki hakkın doldu (${k.monthly} üretim).</div>`;
+  return `<p class="muted small" style="margin:6px 0 0">Bugün kalan hak: ${k.daily_left} / ${k.daily}</p>`;
+}
+async function dyKalan(){
+  const d = dyState(); if (S.mode!=="cloud" || !S.cloud?.shop) return;
+  try{
+    const {data, error} = await SB.rpc("ai_kalan", {p_shop: S.cloud.shop.id}); if (error || !data) return;
+    d.kalan = data;
+    const box = document.getElementById("dy-kalan"), btn = document.querySelector('[data-act="dyAi"]');
+    if (box) box.innerHTML = dyKalanHtml();
+    if (btn && !d.aiBusy) btn.disabled = dyBlocked(d);
+  }catch(_){}
+}
 function dySave(){ const d = dyState(); try { localStorage.setItem("kolay-dy", JSON.stringify({theme:d.theme, saat:d.saat, bayram:d.bayram})); } catch(_){} }
 function kDuyuru(){
   const d = dyState(); dyLoad();
@@ -5591,8 +5610,9 @@ function kDuyuru(){
       <h2 style="margin:6px 0 4px">Ne duyurmak istiyorsun?</h2>
       <p class="muted small" style="margin:0 0 10px">Kendi cümlelerinle yaz, sunucu duyuru yazısını hazırlasın. Örnek: “Yarın sabah taze simit var, tanesi 10 TL.”</p>
       <textarea id="dy-ai" rows="4" maxlength="500" placeholder="Duyurulacak şeyi yaz…" style="width:100%;font-size:18px" ${d.aiBusy?"disabled":""}>${esc(d.aiPrompt||"")}</textarea>
+      <div id="dy-kalan">${dyKalanHtml()}</div>
       ${d.aiErr ? `<div class="notice bad" style="margin-top:8px">${esc(d.aiErr)}</div>` : ""}
-      <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>`;
+      <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy || dyBlocked(d) ?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>`;
   }
   const c = dyCtx(), needP = d.type==="stok" || d.type==="kampanya";
   const prods = S.products.slice().sort((a,b)=>a.name.localeCompare(b.name,"tr"));
@@ -5621,7 +5641,7 @@ document.addEventListener("input", ev=>{ const id = ev.target.id, d = S.dy; if (
 document.addEventListener("change", ev=>{ if (ev.target.id==="dy-prod" && S.dy){ S.dy.urun = ev.target.value; S.dy.fiyat = ""; render(true); } });
 async function dyAct(a, t){
   const d = dyState();
-  if (a==="dyAiReset"){ d.ai = null; d.aiErr = ""; render(); return true; }
+  if (a==="dyAiReset"){ d.ai = null; d.aiErr = ""; render(); dyKalan(); return true; }
   if (a==="dyAi"){
     const p = (d.aiPrompt||"").trim();
     if (p.length < 3){ d.aiErr = "Ne duyurmak istediğini biraz yaz."; render(true); return true; }
@@ -5639,8 +5659,8 @@ async function dyAct(a, t){
       }
       if (!d.ai) throw new Error("Biraz uzun sürdü. Tekrar dene.");
     }catch(e){ d.aiErr = String(e.message || e); }
-    d.aiBusy = false; render(true); return true; }
-  if (a==="dyType"){ d.type = t.dataset.id; d.ai = null; d.aiErr = ""; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); return true; }
+    d.aiBusy = false; render(true); dyKalan(); return true; }
+  if (a==="dyType"){ d.type = t.dataset.id; d.ai = null; d.aiErr = ""; d.v = 0; d.durum = "acik"; d.urun = ""; d.fiyat = ""; render(); window.scrollTo(0,0); if (d.type==="ozel") dyKalan(); return true; }
   if (a==="dyBack"){ d.type = null; render(); window.scrollTo(0,0); return true; }
   if (a==="dyNext"){ d.v++; dyUpd(); return true; }
   if (a==="dyTheme"){ d.theme = (d.theme+1) % Duyuru.THEMES.length; dySave(); dyUpd(); return true; }

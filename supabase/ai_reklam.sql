@@ -32,3 +32,7 @@ grant select on public.ai_jobs to authenticated;
 create policy ai_jobs_read on public.ai_jobs for select to authenticated using (is_owner(shop_id) or is_admin());
 -- ai_begin(p_uid, p_shop, p_prompt): sahip kontrolü + günlük/aylık limit + tek eşzamanlı iş; sadece service role çağırır.
 -- (Gövdesi canlı veritabanında; supabase/functions/reklam/index.ts bu fonksiyonu çağırır.)
+
+-- ai_kalan(p_shop): Kendin Anlat ekranı kalan hakkı önceden gösterir; sadece sahip/yönetici.
+-- Döner: {enabled, daily, monthly, daily_left, monthly_left}. (Gövdesi canlı veritabanında.)
+-- grant execute on function public.ai_kalan(uuid) to authenticated;
