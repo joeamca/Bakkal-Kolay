@@ -2,7 +2,7 @@
 
 Büyük düğmeli, sade bakkal defteri: satış, kasa, stok, kâr. Telefona yüklenen web uygulaması.
 
-**Adres:** https://joeamca.github.io/bakkal-kolay/
+**Adres:** https://joeamca.github.io/Bakkal-Kolay/
 
 Normal uygulamadan (Bakkal Defteri) bağımsızdır: kendi dosyaları, servis çalışanı ve adresi var. Veri aynı Supabase projesindedir; aynı hesapla giren aynı dükkânı görür.
 

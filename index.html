@@ -808,7 +808,7 @@ html.kolay nav.tabs button span{white-space:nowrap}
 .cmid b::-webkit-scrollbar,.cday i::-webkit-scrollbar,.ksum b::-webkit-scrollbar,.ktoday b::-webkit-scrollbar{display:none}
 </style>
 
-<noscript><style>.wrap,nav.tabs,#toast{display:none!important}</style><div style="max-width:560px;margin:24px auto;padding:20px;font:18px/1.5 system-ui,sans-serif;background:#fff;border:2px solid #0f6b55;border-radius:14px;color:#1d2421"><b style="font-size:22px">Bakkal Defteri</b><p>Bu dosya burada çalışmıyor. Aşağıdaki düğmeye bas, uygulama tarayıcıda açılsın.</p><a href="https://joeamca.github.io/bakkal-kolay/" style="display:block;text-align:center;background:#0f6b55;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:700;font-size:20px">Uygulamayı aç</a><p style="font-size:15px;color:#5f6b66;overflow-wrap:anywhere">Açılmazsa bu adresi Chrome ya da Safari'ye yaz:<br>https://joeamca.github.io/bakkal-kolay/</p></div></noscript>
+<noscript><style>.wrap,nav.tabs,#toast{display:none!important}</style><div style="max-width:560px;margin:24px auto;padding:20px;font:18px/1.5 system-ui,sans-serif;background:#fff;border:2px solid #0f6b55;border-radius:14px;color:#1d2421"><b style="font-size:22px">Bakkal Defteri</b><p>Bu dosya burada çalışmıyor. Aşağıdaki düğmeye bas, uygulama tarayıcıda açılsın.</p><a href="https://joeamca.github.io/Bakkal-Kolay/" style="display:block;text-align:center;background:#0f6b55;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:700;font-size:20px">Uygulamayı aç</a><p style="font-size:15px;color:#5f6b66;overflow-wrap:anywhere">Açılmazsa bu adresi Chrome ya da Safari'ye yaz:<br>https://joeamca.github.io/Bakkal-Kolay/</p></div></noscript>
 <div class="wrap">
   <header class="top">
     <div><h3>Bakkal Kolay <span id="today" class="today"></span></h3><h1 id="pageTitle">Bugün</h1></div>
@@ -2892,7 +2892,7 @@ function memoryStore(){
     async saveSale(x){ posMemSave("sales", x); }, async saveCash(x){ posMemSave("cash", x); }, async deleteCash(id){ posMemDel("cash", id); }
   };
 }
-const APP_URL = "https://joeamca.github.io/bakkal-kolay/";
+const APP_URL = "https://joeamca.github.io/Bakkal-Kolay/";
 const FILE_MODE = !/^https?:$/.test(location.protocol);
 const LKEY = "bd-veri";
 function readLocal(){ try{ const r = JSON.parse(localStorage.getItem(LKEY)||"null"); return r && Array.isArray(r.products) ? r : null; }catch(_){ return null; } }
