@@ -4196,6 +4196,51 @@ function askTool(name, a){
       A.pending.push({pid:p.id, urun:p.name, alan, eski, yeni});
       return {durum:"onay_bekliyor", urun:p.name, alan, eski, yeni, not:"Kayıt henüz değişmedi; kullanıcı kutudan onaylayınca uygulanır."};
     }
+    if (name==="dukkan_ozeti"){
+      const staff = (C.people||[]).filter(x=>x.role==="staff").length;
+      return {dukkan_adi: shopTitle()||null, kullanici: isStaff() ? "çalışan" : "dükkân sahibi", urun_sayisi:S.products.length, musteri_sayisi:Object.keys(S.customers||{}).length,
+        tedarikci_sayisi:supList().length, calisan_sayisi:staff, calisan_bilgisi: (C.people||[]).length ? "calisanlar aracıyla görülür" : "yüklenmedi, calisanlar aracını çağır", satis_verisi:"son 30 gün", bugun:ymd(Date.now())};
+    }
+    if (name==="calisanlar"){
+      const L = (C.people||[]).map(x=>({ad:x.full_name||x.username, rol:x.role==="owner" ? "dükkân sahibi" : "çalışan (çırak / yanında çalışan)", son_giris_gun_once: x.last_seen ? Math.max(0, Math.round((Date.now()-new Date(x.last_seen).getTime())/DAY)) : null}));
+      return {toplam:L.length, cirak_var: L.some(x=>x.rol.startsWith("çalışan")), kisiler:L};
+    }
+    if (name==="kim_ne_yapti"){
+      const g = Math.min(30, Math.max(1, Math.round(Number(a.gun)||1))), from = today0() + DAY - g*DAY, m = {};
+      for (const x of S.sales){ if (x.x) continue; const t = tOf(x); if (!(t >= from)) continue; const n = whoName(C.by?.["sale:"+x.id]) || "bilinmiyor"; const r = (m[n] ||= {kisi:n, fis:0, ciro:q2(0)}); if (!x.r) r.fis++; r.ciro = q2(r.ciro + (Number(x.tot)||0)); }
+      return {gun:g, kisiler:Object.values(m).sort((x,y)=>y.ciro-x.ciro), not:"Eski kayıtlarda kimin girdiği bilinmeyebilir."};
+    }
+    if (name==="musteri_listesi"){
+      const n = a.ara ? norm(String(a.ara)) : "", cs = Object.values(S.customers||{}).filter(c=>c.name && (!n || norm(c.name).includes(n)));
+      const L = cs.map(c=>({musteri:c.name, borc:q2(custStats(c).bal)})).sort((x,y)=>x.musteri.localeCompare(y.musteri,"tr"));
+      return {toplam:L.length, musteriler:L.slice(0, 40)};
+    }
+    if (name==="tedarikci_listesi"){
+      const L = supList().map(x=>{ const st = supStats(x.id); return {tedarikci:x.name, teslim_gunleri:(x.days||[]).map(d=>DN[d]), borc:q2(st.bal), vade_gun:st.vade, urun_sayisi:S.products.filter(p=>p.supplier && supKey(p.supplier)===x.id).length}; });
+      return {toplam:L.length, tedarikciler:L.slice(0, 30)};
+    }
+    if (name==="urun_listesi"){
+      const n = a.ara ? norm(String(a.ara)) : "", t = a.tedarikci ? norm(String(a.tedarikci)) : "";
+      const L = S.products.filter(p=>(!n || norm(p.name + " " + (p.aliases||[]).join(" ")).includes(n)) && (!t || norm(p.supplier||"").includes(t))).sort((x,y)=>x.name.localeCompare(y.name,"tr"));
+      return {toplam:L.length, urunler:L.slice(0, 40).map(p=>({urun:p.name, satis_fiyati:p.salePrice ?? null, stok:(()=>{ const c = pCur(p); return c==null ? "bilinmiyor" : r3(c); })(), birim:p.byWeight ? "kg" : (p.unit||"tane"), tedarikci:p.supplier||null}))};
+    }
+    if (name==="son_satislar"){
+      const n = Math.min(15, Math.max(1, Math.round(Number(a.adet)||5)));
+      const L = S.sales.filter(x=>!x.x).sort((x,y)=>tOf(y)-tOf(x)).slice(0, n).map(x=>({zaman:localStamp(tOf(x)), tutar:q2(x.tot), odeme:x.pay||"nakit", iade:!!x.r, musteri:x.c ? custName(x.c) : null,
+        kalemler:(x.it||[]).slice(0, 6).map(i=>`${r3(i.q)} ${i.n}`), kasiyer:whoName(C.by?.["sale:"+x.id])||null}));
+      return {satislar:L};
+    }
+    if (name==="kasa_hareketleri"){
+      const g = Math.min(7, Math.max(1, Math.round(Number(a.gun)||1))), from = today0() + DAY - g*DAY;
+      const L = S.cash.filter(x=>tOf(x) >= from).sort((x,y)=>tOf(y)-tOf(x)).slice(0, 30).map(x=>({zaman:localStamp(tOf(x)), tur:{acilis:"açılış", kapanis:"kapanış", giris:"para koy", cikis:"para al"}[x.t]||x.t, tutar:q2(x.a), neden:x.r||null, not:x.n||null, kasiyer:whoName(C.by?.["cash:"+x.id])||null}));
+      return {gun:g, hareketler:L};
+    }
+    if (name==="stok_hareketleri"){
+      const g = Math.min(14, Math.max(1, Math.round(Number(a.gun)||3))), from = today0() + DAY - g*DAY, TY = {gelen:"mal geldi", fire:"fire", ariza:"arıza", iade:"iade", sayim:"sayım", bos:"bitti"};
+      const L = S.events.filter(e=>TY[e.type] && Date.parse(e.date) >= from).sort((x,y)=>Date.parse(y.date)-Date.parse(x.date)).slice(0, 40).map(e=>({zaman:localStamp(Date.parse(e.date)), tur:TY[e.type],
+        urun:(S.products.find(p=>p.id===e.productId)||{}).name||"?", miktar:e.type==="bos" ? null : r3(e.qty), neden:e.reason||null, kim:whoName(C.by?.["event:"+e.id])||null}));
+      return {gun:g, hareketler:L};
+    }
     if (name==="veresiye"){
       const cs = Object.values(S.customers||{});
       if (a.musteri){ const n = norm(String(a.musteri)); const L = cs.filter(c=>c.name && norm(c.name).includes(n)).slice(0, 5);
@@ -4218,6 +4263,7 @@ async function askRun(q){
       const {data, error} = await SB.functions.invoke("asistan", {body:{shop_id:S.cloud.shop.id, mode:"ask", contents:A.contents}});
       if (error){ let e = ""; try{ e = (await error.context?.json?.())?.error || ""; }catch(_){} throw new Error(e || "Olmadı. İnternetini kontrol et."); }
       if (data?.kind==="tool" && Array.isArray(data.calls) && data.content){
+        if (data.calls.some(c=>c.name==="calisanlar"||c.name==="dukkan_ozeti"||c.name==="kim_ne_yapti") && !(C.people||[]).length) await loadPeople();
         A.contents.push(data.content);
         A.contents.push({role:"user", parts:data.calls.map(c=>({functionResponse:{name:c.name, response:{sonuc:askTool(c.name, c.args)}}}))});
       } else if (data?.kind==="text" && data.text){
@@ -4263,7 +4309,7 @@ function kSor(){
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz ya da söyle…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}>${SpeechR ? `<button type="button" class="vmic" data-act="askMic" aria-label="Konuş" ${A.busy?"disabled":""}>🎤</button>` : ""}<button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
     ${A.msgs.length ? `<button class="link" type="button" data-act="askNew">Yeni konuşma</button>` : ""}
-    <p class="muted small">Cevap için sorunla ilgili rakamlar ve ürün, müşteri ve tedarikçi adları Google Gemini'ye gönderilir; telefon numaraları gönderilmez. Satış bilgisi son 30 günü kapsar.</p>`;
+    <p class="muted small">Cevap için sorunla ilgili rakamlar ve ürün, müşteri, tedarikçi ve çalışan adları Google Gemini'ye gönderilir; telefon numaraları gönderilmez. Satış bilgisi son 30 günü kapsar.</p>`;
 }
 document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.target.closest("[data-act^='ask']"); if (!t) return;
   if (t.dataset.act==="askQ") askRun(t.dataset.q);
