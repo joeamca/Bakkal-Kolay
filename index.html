@@ -789,6 +789,9 @@ html.kolay .wrap > #view > * + *{margin-top:14px}
 .kumal{width:100%}
 html.kolay nav.tabs button{font-size:14px}
 html.kolay nav.tabs button span{white-space:nowrap}
+html.kolay nav.tabs{grid-template-columns:none;grid-auto-flow:column;grid-auto-columns:1fr}
+html.kolay nav.tabs button{font-size:12.5px;padding-left:2px;padding-right:2px}
+html.kolay nav.tabs button[data-tab="sor"]{--tc:var(--c3)}
 .kcta b{font-size:22px}
 .kcta small,.ksell small,.kother small{display:block;line-height:1.3;margin-top:2px}
 .kctai .icon{color:#fff}
@@ -1778,6 +1781,7 @@ function viewSettings(){
 
 /* ---------- İkonlar ve grafikler ---------- */
 const ICONS = {
+  spark:'<path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/><path d="M19 16l.7 2 2 .7-2 .7-.7 2-.7-2-2-.7 2-.7z"/>',
   home:'<path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/>',
   list:'<path d="M9 6h12M9 12h12M9 18h12"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
   receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
@@ -4247,8 +4251,7 @@ async function askApply(){
 function kSor(){
   const A = askState();
   const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?", "En kârlı ürünlerim hangileri?", "Kasada ne kadar olmalı?"];
-  return noticeHtml() + backLink() + `<h2 style="margin:6px 0 4px">Asistana Sor</h2>
-    <p class="muted small" style="margin:0 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Fiyat, ad ya da stok düzeltmesi önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
+  return noticeHtml() + `<p class="muted small" style="margin:6px 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Fiyat, ad ya da stok düzeltmesi önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
     <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
     ${askPendingHtml(A)}${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
@@ -5567,7 +5570,7 @@ GUIDE.tedarik = {t:"Tedarikçiler: kime ne borcun var", s:[
 /* ================= Bakkal Kolay: sade arayüz, aynı veri ve aynı hesaplar ================= */
 window.KOLAY = true;
 const K_MAP = {ana:"k-ana", menu:"k-daha", stok:"k-stok", kar:"k-kar"};
-const K_MORE = ["hareket","duyuru","sor","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
+const K_MORE = ["hareket","duyuru","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
 const K_MAL = ["Toptancı / plasiyer ödemesi","Ekmekçi"], K_DIS = ["Bankaya yatırıldı","Kendime aldım"];
 Object.assign(titles, {"k-ana":"Ana Sayfa", "k-kasa":"Kasa", "k-stok":"Stok", "k-kar":"Kâr ve Zarar", "k-daha":"Daha Fazla", "k-urun":"Ürün", duyuru:"Duyuru", sor:"Asistana Sor", hareket:"Stok Hareketleri"});
 function kRoute(){
@@ -5714,7 +5717,6 @@ function kDaha(){
     ${t("kGo", 'data-tab="tedarik"', "c2", ic("truck",28), "Tedarikçiler", (()=>{ const v = supList().reduce((a,x)=>a+Math.max(0,supStats(x.id).bal),0); return v>0.005 ? `Borcum: ${kTL(v)}` : "Borç, mal geldi, ödeme"; })())}
     ${t("kGo", 'data-tab="hareket"', "c4", ic("list",28), "Stok Hareketleri", "Kim ne yaptı")}
     ${t("kGo", 'data-tab="duyuru"', "c6", ic("mega",28), "Duyuru", "Mahalleye haber ver")}
-    ${t("kGo", 'data-tab="sor"', "c1", ic("search",28), "Asistana Sor", "Ciro, stok, veresiye")}
     ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}
     ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Şifre, yedek")}
   </div>`;
@@ -5977,7 +5979,7 @@ document.addEventListener("input", ev=>{ if (ev.target.id==="k-q"){ S.kq = ev.ta
 document.addEventListener("keydown", ev=>{ if (ev.target?.id==="ku-bc" && ev.key==="Enter"){ ev.preventDefault(); if (kBcCheck()!==false) document.getElementById(document.getElementById("ku-name")?.value ? "ku-sale" : "ku-name")?.focus(); } });
 document.documentElement.classList.add("kolay");
 (function(){ const n = document.querySelector('nav.tabs[aria-label="Bölümler"]'); if (!n) return;
-  const T = [["k-ana","Ana Sayfa","home"],["satis","Satış","scan"],["k-kasa","Kasa","cash"],["k-stok","Stok","box"],["k-kar","Kâr","chart"]];
+  const T = [["k-ana","Ana Sayfa","home"],["satis","Satış","scan"],["k-kasa","Kasa","cash"],["k-stok","Stok","box"],["k-kar","Kâr","chart"],["sor","Asistan","spark"]];
   n.innerHTML = T.map(([t,l,i])=>`<button data-tab="${t}">${ic(i,26)}<span>${l}</span></button>`).join(""); })();
 
 try{ if (!localStorage.getItem("bd-rehber")){ S.guide=true; S.tab="urunler"; localStorage.setItem("bd-rehber","1"); } }catch(_){}
