@@ -149,3 +149,6 @@ Uygulamada açılışta bir kez "Yenilikler" kutusu çıkar; **Tamam**'a basınc
 - **Bildirimler:** Kolay'da bildirim türü seçtirilmez; bildirimi açınca stok, kasa, veresiye, tedarikçi ve rapor bildirimlerinin hepsi gelir. Tam sürümde seçim kalır.
 - **Kamerayla barkod (telefon):** Satış ekranında ve Ürün Ekle'deki barkod kutusunda kamera düğmesi var. Düğmeye basıp barkodu çerçeveye tut; ürün kendiliğinden sepete düşer ya da kutuya yazılır. Bilgisayarda görünmez. Kamera ekranında **+ / −** ve iki parmakla yakınlaştırma, dokunulan yere odaklama (telefon destekliyorsa) ve netleşmezse **Fotoğraf Çek** düğmesi vardır.
 - **Kolay:** Kasa'da "Diğer" seçilince açıklama kutusu kendiliğinden açılır; rapor ekranı sadeleştirildi; ürün eklerken rafa eksi sayı yazılırsa uyarır.
+
+## Çırak modu
+Ayarlar > "PIN ve Ekran Kilidi" > **Çırak Moduna Geç**: telefon çırağa bırakılırken uygulama çırak görünümüne geçer (kasa, kâr, rapor, yapay zekâ, şifre/PIN/çıkış kapanır; üstte "Sahibe Dön" düğmesi çıkar). Sahibe dönmek için hesabın 4 haneli PIN'i istenir (sunucuda doğrulanır). Mod uygulama kapanıp açılınca da sürer. Not: bu, aynı telefondaki bir görünüm kilididir; çırağa ayrı kullanıcı hesabı açmak en güvenli yoldur.
