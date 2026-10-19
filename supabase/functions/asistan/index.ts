@@ -37,8 +37,8 @@ const TOOLS = [{ functionDeclarations: [
     parameters: { type: "OBJECT", properties: { gun: { type: "INTEGER", description: "Kaç gün (1-30). Bugün için 1, bu hafta için 7." } }, required: ["gun"] } },
   { name: "en_cok_satanlar", description: "Son N günde ciroya göre en çok satan ürünler (adet ve ciro).",
     parameters: { type: "OBJECT", properties: { gun: { type: "INTEGER", description: "Kaç gün (1-30)." }, adet: { type: "INTEGER", description: "Kaç ürün (1-10)." } }, required: ["gun"] } },
-  { name: "stok", description: "Ürün adı verilirse o ürünün stoğu ve durumu; verilmezse azalan ya da biten ürünlerin listesi (sipariş için).",
-    parameters: { type: "OBJECT", properties: { urun: { type: "STRING", description: "Ürün adı ya da bir kısmı (isteğe bağlı)." } } } },
+  { name: "stok", description: "Ürün adı verilirse o ürünün stoğu ve durumu. Ürün adı yoksa liste: durum \"stokta_olanlar\" ise stokta bulunan ürünler (miktarlarıyla), \"azalan_biten\" ise azalan ya da biten ürünler (sipariş için).",
+    parameters: { type: "OBJECT", properties: { urun: { type: "STRING", description: "Ürün adı ya da bir kısmı (isteğe bağlı)." }, durum: { type: "STRING", description: "Liste türü: stokta_olanlar ya da azalan_biten (varsayılan azalan_biten)." } } } },
   { name: "veresiye", description: "Müşteri adı verilirse o müşterinin borcu; verilmezse toplam alacak ve en çok borcu olanlar.",
     parameters: { type: "OBJECT", properties: { musteri: { type: "STRING", description: "Müşteri adı ya da bir kısmı (isteğe bağlı)." } } } },
 ] }];
@@ -59,22 +59,26 @@ function askContents(raw: unknown): any[] | null {
 async function geminiRaw(body: Record<string, unknown>): Promise<any> {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) throw new Error("kapali");
-  const ana = Deno.env.get("AI_TEXT_MODEL") || "gemini-3.8-flash";
-  const sira = [ana, ana, "gemini-3.6-flash"];
-  let r: Response | null = null;
-  for (let k = 0; k < sira.length; k++) {
-    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(sira[k])}:generateContent`, {
-      method: "POST",
-      headers: { "x-goog-api-key": key, "content-type": "application/json" },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15000),
-    });
-    if (r.ok || ![429, 500, 503].includes(r.status)) break;
-    console.log("gemini yogun", sira[k], r.status);
-    await new Promise((res) => setTimeout(res, 800));
+  // Her modelin ücretsiz kotası ayrıdır: 429 (kota) gelirse aynı modeli yoklamadan sıradakine geç; 500/503'te bir kez daha dene.
+  const sira = [Deno.env.get("AI_TEXT_MODEL") || "gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+  let last = 0;
+  for (const m of sira) {
+    for (let t = 0; t < 2; t++) {
+      let r: Response;
+      try {
+        r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(m)}:generateContent`, {
+          method: "POST", headers: { "x-goog-api-key": key, "content-type": "application/json" },
+          body: JSON.stringify(body), signal: AbortSignal.timeout(12000),
+        });
+      } catch (_) { console.log("gemini zaman asimi", m); last = 0; break; }
+      if (r.ok) return await r.json();
+      last = r.status;
+      console.log("gemini hata", m, r.status, (await r.text()).replace(/\s+/g, " ").slice(0, 300));
+      if (r.status === 500 || r.status === 503) { await new Promise((res) => setTimeout(res, 700)); continue; }
+      break;
+    }
   }
-  if (!r || !r.ok) throw new Error("gemini " + (r?.status ?? "yok"));
-  return await r.json();
+  throw new Error("gemini " + last);
 }
 
 async function gemini(sys: string, user: string): Promise<Record<string, unknown>> {
@@ -138,6 +142,7 @@ Deno.serve(async (req) => {
   } catch (e) {
     console.log("asistan hata", String(e).slice(0, 200));
     if (String(e).includes("kapali")) return j({ error: "Yapay zekâ şu an kapalı." }, 503);
+    if (String(e).includes("gemini 429")) return j({ error: "Google'ın ücretsiz kullanım sınırına takıldık. Bir dakika sonra tekrar dene." }, 429);
     return j({ error: "Anlayamadım ya da servis yoğun. Tekrar dene." }, 502);
   }
 });

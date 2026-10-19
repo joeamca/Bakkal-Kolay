@@ -4130,6 +4130,8 @@ function askTool(name, a){
     if (name==="stok"){
       const row = p => { const st = stockStatus(p, stats(p)); return {urun:p.name, durum:st.t, stok: st.cur.known ? r3(st.cur.v) : "bilinmiyor", birim:p.unit||"tane"}; };
       if (a.urun){ const L = posSearch(String(a.urun)).slice(0, 5); return L.length ? {urunler:L.map(row)} : {urunler:[], not:"Bu adla ürün bulunamadı."}; }
+      if (a.durum==="stokta_olanlar"){ const have = stockP().filter(p=>{ const c = stockStatus(p, stats(p)).cur; return c.known && c.v >= 0.5; }).sort((x,y)=>x.name.localeCompare(y.name,"tr"));
+        return {toplam:have.length, urunler:have.slice(0, 40).map(row)}; }
       const all = stockP().filter(p=>{ const k = stockStatus(p, stats(p)).k; return k==="low" || k==="out"; });
       return {toplam:all.length, urunler:all.slice(0, 25).map(row)};
     }
