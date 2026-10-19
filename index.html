@@ -4054,7 +4054,7 @@ async function voiceSend(m){
   voiceStop(); if (btn){ btn.disabled = true; btn.textContent = "…"; } say("Anlaşılıyor…");
   try{
     const body = {shop_id: S.cloud.shop.id, mode: m, text}; let pl = [];
-    if (m==="sat"){ pl = S.products.slice(0, 600); body.urunler = pl.map(p=>p.name); body.musteriler = Object.values(S.customers).map(c=>c.name).slice(0, 300); }
+    if (m==="sat"){ pl = S.products.slice(0, 600); body.urunler = pl.map(p=>p.name); }
     const {data, error} = await SB.functions.invoke("asistan", {body});
     if (error){ let e = ""; try{ e = (await error.context?.json?.())?.error || ""; }catch(_){} throw new Error(e || "Olmadı. İnternetini kontrol et."); }
     if (m==="sat") voiceApplySale(data, pl); else voiceApplyProduct(data);
