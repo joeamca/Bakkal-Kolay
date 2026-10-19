@@ -4757,14 +4757,14 @@ async function nTest(){
 // Arka planda gönder: hata kasayı durdurmasın
 function nSend(type, title, body, tag, noEx){
   try{ if (!SB || S.mode!=="cloud" || !S.cloud.shop || !navigator.onLine) return;
-    SB.functions.invoke("bildir", {body:{type, title, body, tag, shop_id: S.cloud.shop.id, exclude: noEx ? undefined : N.endpoint}}).catch(()=>{}); }catch(_){}
+    SB.functions.invoke("bildir", {body:{type, title, body, tag, shop_id: S.cloud.shop.id, exclude: noEx ? undefined : N.endpoint, app: window.KOLAY ? "kolay" : "tam"}}).catch(()=>{}); }catch(_){}
 }
 // Gün kapanışında günün raporu (pazarsa haftanın, ayın son günüyse ayın raporu da) bildirim olarak gider.
 // Aynı gün ikinci kapanışta tekrar gönderilmez. Kapanış yapmayan dükkânlara sunucu 23:30'da yedek olarak gönderir.
 function nRapor(){
   try{ if (!SB || S.mode!=="cloud" || !S.cloud.shop || !navigator.onLine) return;
     if (kasaDay(today0()).cash.filter(c=>c.t==="kapanis").length > 1) return;
-    SB.functions.invoke("bildir", {body:{type:"rapor", shop_id: S.cloud.shop.id}}).catch(()=>{}); }catch(_){}
+    SB.functions.invoke("bildir", {body:{type:"rapor", shop_id: S.cloud.shop.id, app: window.KOLAY ? "kolay" : "tam"}}).catch(()=>{}); }catch(_){}
 }
 function nOnce(key){ const k = "bd-n-" + key + "-" + ymd(Date.now()); try{ if (localStorage.getItem(k)) return false; localStorage.setItem(k, "1"); }catch(_){} return true; }
 function nAfterSale(sale){

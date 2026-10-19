@@ -65,3 +65,6 @@ begin
 end $$;
 revoke all on function public.perm_pin_info(uuid), public.perm_pin_check(uuid, text), public.perm_pin_set(uuid, text, text) from public, anon;
 grant execute on function public.perm_pin_info(uuid), public.perm_pin_check(uuid, text), public.perm_pin_set(uuid, text, text) to authenticated;
+
+-- Bildirim uygulamaya göre süzülür (Kolay'dan yapılan işlem Kolay cihazlarına, normal uygulamadan yapılan normal cihazlara gider).
+-- Canlı veritabanında push_targets(…, p_app), bd_report_items(…, p_app), push_report_shop(p_uid, p_shop, p_app, …) bu amaçla eklendi.
