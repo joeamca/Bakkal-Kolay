@@ -4241,6 +4241,23 @@ function askTool(name, a){
         urun:(S.products.find(p=>p.id===e.productId)||{}).name||"?", miktar:e.type==="bos" ? null : r3(e.qty), neden:e.reason||null, kim:whoName(C.by?.["event:"+e.id])||null}));
       return {gun:g, hareketler:L};
     }
+    if (name==="urun_ekle_oner"){
+      const A = askState(), ad = String(a.ad||"").replace(/[\u0000-\u001f]/g," ").trim().slice(0, 80);
+      if (ad.length < 2) return {hata:"Ürün adı gerekli."};
+      const num0 = v => { if (v==null || v==="") return null; const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 && n <= 1e6 ? n : NaN; };
+      const sale = num0(a.satis_fiyati), buy = num0(a.alis_fiyati), cnt = num0(a.stok);
+      if (!(sale > 0)) return {hata:"Satış fiyatı gerekli (sıfırdan büyük). Kullanıcıya sor."};
+      if (Number.isNaN(buy) || Number.isNaN(cnt)) return {hata:"Alış fiyatı ya da stok sayısı geçersiz."};
+      if (S.products.some(x=>norm(x.name)===norm(ad))) return {hata:"Bu adla ürün zaten var: " + ad + ". Düzeltme için duzeltme_oner kullan."};
+      let code = String(a.barkod||"").replace(/\D/g, "");
+      if (code){ if (!eanOk(code)) return {hata:"Barkod rakamları tutmadı (kontrol basamağı), yazılmadı. Kullanıcıya tekrar söylemesini ya da kamerayla okutmasını söyle."};
+        const own = barcodeOwner(code); if (own) return {hata:"Bu barkod zaten " + own.name + " ürününde kayıtlı."}; }
+      const d = {ad, satis:r2(sale), alis: buy>0 ? r2(buy) : null, stok: cnt!=null ? r3(cnt) : null, barkod: code||null, kilo: a.kilo===true || a.kilo==="true", tedarikci: String(a.tedarikci||"").trim().slice(0, 60)};
+      A.pending = (A.pending||[]).filter(x=>!(x.yeniUrun && norm(x.urun)===norm(ad)));
+      if (A.pending.length >= 10) return {hata:"Tek seferde en fazla 10 değişiklik önerilebilir."};
+      A.pending.push({yeniUrun:true, urun:ad, d});
+      return {durum:"onay_bekliyor", urun:ad, not:"Ürün henüz eklenmedi; kullanıcı kutudan onaylayınca eklenir."};
+    }
     if (name==="veresiye"){
       const cs = Object.values(S.customers||{});
       if (a.musteri){ const n = norm(String(a.musteri)); const L = cs.filter(c=>c.name && norm(c.name).includes(n)).slice(0, 5);
@@ -4279,7 +4296,7 @@ const ASK_LBL = {satis_fiyati:"Satış fiyatı", alis_fiyati:"Alış fiyatı", a
 const askVal = (alan, v) => v==null ? "yok" : alan==="ad" ? `“${v}”` : alan==="stok_sayim" ? fmt(v,3) : TLx(v);
 function askPendingHtml(A){
   if (!A.pending || !A.pending.length) return "";
-  return `<div class="notice warn askpend"><b>Onayını bekliyor (${A.pending.length} değişiklik)</b><ul style="margin:6px 0 8px;padding-left:18px">${A.pending.map(x=>`<li><b>${esc(x.urun)}</b> · ${ASK_LBL[x.alan]}: ${esc(askVal(x.alan, x.eski))} → <b>${esc(askVal(x.alan, x.yeni))}</b></li>`).join("")}</ul>
+  return `<div class="notice warn askpend"><b>Onayını bekliyor (${A.pending.length} değişiklik)</b><ul style="margin:6px 0 8px;padding-left:18px">${A.pending.map(x=>x.yeniUrun ? `<li><b>Yeni ürün: ${esc(x.urun)}</b> · satış ${esc(TLx(x.d.satis))}${x.d.alis!=null ? `, alış ${esc(TLx(x.d.alis))}` : ""}${x.d.stok!=null ? `, stok ${esc(fmt(x.d.stok,3))}` : ""}${x.d.barkod ? `, barkod ${esc(x.d.barkod)}` : ""}${x.d.kilo ? ", kiloyla satılır" : ""}${x.d.tedarikci ? `, tedarikçi ${esc(x.d.tedarikci)}` : ""}</li>` : `<li><b>${esc(x.urun)}</b> · ${ASK_LBL[x.alan]}: ${esc(askVal(x.alan, x.eski))} → <b>${esc(askVal(x.alan, x.yeni))}</b></li>`).join("")}</ul>
     <p class="small" style="margin:0 0 8px">Sen onaylamadan hiçbir şey değişmez.</p>
     <div class="row nowrap"><button type="button" class="primary" data-act="askApply" ${A.busy?"disabled":""}>Onayla ve uygula</button><button type="button" data-act="askCancel">Vazgeç</button></div></div>`;
 }
@@ -4289,6 +4306,12 @@ async function askApply(){
   A.busy = true; A.pending = []; render(true); const done = [], fail = [];
   for (const x of list){
     try{
+      if (x.yeniUrun){ const d = x.d;
+        if (S.products.some(q=>norm(q.name)===norm(d.ad)) || (d.barkod && barcodeOwner(d.barkod))){ fail.push(x.urun + " (zaten var)"); continue; }
+        await store.saveProduct({id:newId(), createdAt:nowIso(), aliases:[], outSince:null, recipe:null, name:d.ad, supplier:d.tedarikci||"", initialWeekly:0, intervalDays:7, caseSize:1,
+          perishable:false, core:false, unit: d.kilo ? "kg" : "tane", everyN:1, shelfDays:null, initialStock: d.stok!=null ? d.stok : null,
+          salePrice:d.satis, salePriceAt:nowIso(), buyPrice:d.alis, barcodes: d.barkod ? [{c:d.barkod, q:1}] : [], byWeight: !!d.kilo});
+        done.push(`Yeni ürün eklendi: ${d.ad} (satış ${TLx(d.satis)})`); continue; }
       const p = S.products.find(q=>q.id===x.pid); if (!p){ fail.push(x.urun); continue; }
       if (x.alan==="satis_fiyati") await store.saveProduct({...p, salePrice:x.yeni, salePriceAt: nowIso()});
       else if (x.alan==="alis_fiyati") await store.saveProduct({...p, buyPrice:x.yeni});
