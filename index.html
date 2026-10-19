@@ -4764,7 +4764,7 @@ function nSend(type, title, body, tag, noEx){
 function nRapor(){
   try{ if (!SB || S.mode!=="cloud" || !S.cloud.shop || !navigator.onLine) return;
     if (kasaDay(today0()).cash.filter(c=>c.t==="kapanis").length > 1) return;
-    SB.functions.invoke("bildir", {body:{type:"rapor", shop_id: S.cloud.shop.id, app: window.KOLAY ? "kolay" : "tam"}}).catch(()=>{}); }catch(_){}
+    SB.functions.invoke("bildir", {body:{type:"rapor", shop_id: S.cloud.shop.id, app: window.KOLAY ? "kolay" : "tam", exclude: N.endpoint}}).catch(()=>{}); }catch(_){}
 }
 function nOnce(key){ const k = "bd-n-" + key + "-" + ymd(Date.now()); try{ if (localStorage.getItem(k)) return false; localStorage.setItem(k, "1"); }catch(_){} return true; }
 function nAfterSale(sale){
