@@ -164,6 +164,8 @@ begin
           left(p_ua, 200))
   on conflict (endpoint) do update set user_id = excluded.user_id, shop_id = excluded.shop_id, p256dh = excluded.p256dh, auth = excluded.auth,
     app = excluded.app, types = excluded.types, ua = excluded.ua, updated_at = now();
+  -- aynı telefon (aynı tarayıcı kimliği) tek kayıt: iki uygulama kurulduysa en son açılan bildirim alır
+  if coalesce(p_ua, '') <> '' then delete from push_subs where user_id = auth.uid() and ua = left(p_ua, 200) and endpoint <> p_endpoint; end if;
   delete from push_subs where user_id = auth.uid() and endpoint in (
     select endpoint from push_subs where user_id = auth.uid() order by updated_at desc offset 20);
 end $$;
