@@ -4139,7 +4139,7 @@ function askTool(name, a){
       const L = posSearch(String(a.urun||"")).slice(0, 3);
       return L.length ? {urunler:L.map(p=>{ const st = stats(p), m = st.money, s = stockStatus(p, st);
         return {urun:p.name, satis_fiyati:m.sale, alis_fiyati:m.buy, birim_kar:m.unit!=null ? q2(m.unit) : null, kar_orani_yuzde:m.margin!=null ? Math.round(m.margin*100) : null,
-          haftalik_satis:r3(st.weekly), stok:s.cur.known ? r3(s.cur.v) : "bilinmiyor", durum:s.t, tedarikci:p.supplier||null, onerilen_siparis:st.q||0,
+          haftalik_satis:r3(st.weekly), stok:s.cur.known ? r3(s.cur.v) : "bilinmiyor", kac_gun_yeter:(s.cur.known && st.daily>0) ? Math.round(s.cur.v/st.daily*10)/10 : null, gunluk_satis_hizi:r3(st.daily), durum:s.t, tedarikci:p.supplier||null, onerilen_siparis:st.q||0,
           haftalik_kar:m.weekProfit!=null ? q2(m.weekProfit) : null, fire_son4hafta:r3(m.fireW||0)}; })} : {urunler:[], not:"Bu adla ürün bulunamadı."};
     }
     if (name==="gunluk_satis"){
