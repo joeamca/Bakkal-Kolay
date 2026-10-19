@@ -18,7 +18,7 @@ const clip = (s: unknown, n: number) => String(s ?? "").replace(/[\u0000-\u001f]
 declare const EdgeRuntime: any;
 
 type Out = { title: string; body: string; emoji: string; mode: "ai" | "taslak" };
-type Ctx = { prompt: string; dukkan: string };
+type Ctx = { prompt: string; dukkan: string; ilerle?: (ad: string) => Promise<void> };
 
 const SYS = `Sen mahalle bakkalı için kısa, samimi Türkçe duyuru yazan bir yazarsın.
 Yalnızca şu biçimde JSON döndür: {"baslik":"...","govde":"...","emoji":"..."}
@@ -45,6 +45,7 @@ async function yaziGemini(c: Ctx): Promise<Out | null> {
   const sira = [ana, ana, "gemini-3.6-flash"];
   let r: Response | null = null;
   for (let k = 0; k < sira.length; k++) {
+    await c.ilerle?.(k === 0 ? "yaziyor" : k === 1 ? "tekrar" : "yedek");
     r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(sira[k])}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": key, "content-type": "application/json" },
@@ -68,6 +69,7 @@ async function yaziGemini(c: Ctx): Promise<Out | null> {
 async function yaziClaude(c: Ctx): Promise<Out | null> {
   const key = Deno.env.get("ANTHROPIC_API_KEY");
   if (!key) return null;
+  await c.ilerle?.("yaziyor");
   const r = await fetch("https://api.anthropic.com/v1/messages", {
     method: "POST",
     headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
@@ -105,7 +107,9 @@ const STEPS: Step[] = [
 async function run(db: any, jobId: string, c: Ctx) {
   const steps: { ad: string; ms: number }[] = [];
   let acc: Partial<Out> = {};
-  await db.from("ai_jobs").update({ status: "calisiyor" }).eq("id", jobId);
+  // İlerleme: uygulama steps alanındaki son aşamayı okuyup çubuğu çizer (gerçek aşamalar, tahmini süre değil)
+  c.ilerle = async (ad) => { await db.from("ai_jobs").update({ steps: [{ ad }] }).eq("id", jobId); };
+  await db.from("ai_jobs").update({ status: "calisiyor", steps: [{ ad: "basla" }] }).eq("id", jobId);
   for (const s of STEPS) {
     const t0 = Date.now();
     acc = { ...acc, ...(await s.run(c, acc)) };

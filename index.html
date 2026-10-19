@@ -591,6 +591,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dyctl{display:grid;gap:10px;margin-bottom:12px}.dyctl label{display:grid;gap:4px;font-weight:700}
 .dyctl input,.dyctl select{font-size:18px;min-height:50px;width:100%;box-sizing:border-box}
 .dyrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.dyrow button{min-height:54px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
+.dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
 .dyseg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dyseg button{min-height:54px;font-size:18px;font-weight:800}.dyseg button.on{background:var(--c1);color:#fff}
@@ -5576,6 +5577,16 @@ function dyImg(){
   const d = dyState(); if (!window.Duyuru || !d.type) return "";
   try { return Duyuru.dataUrl(d.type, d.v, d.theme, dyCtx()); } catch(_){ return ""; }
 }
+// Kendin Anlat ilerleme çubuğu: sunucunun bildirdiği gerçek aşamaya göre dolar, aşama içinde yavaşça kayar
+const DY_STAGE = {bekliyor:[8,"Sıraya alındı…"], basla:[15,"Başlıyor…"], yaziyor:[40,"Yazı yazılıyor…"], tekrar:[55,"Servis yoğun, tekrar deneniyor…"], yedek:[70,"Yedek yazar deneniyor…"], bitti:[92,"Kart çiziliyor…"]};
+function dyBar(stage, hold){
+  const d = dyState(), st = DY_STAGE[stage] || DY_STAGE.bekliyor;
+  const cap = st[0] + (stage==="bitti" ? 7 : 12);
+  d.aiPct = Math.max(d.aiPct||0, Math.min(cap, hold ? (d.aiPct||0) + 1.2 : st[0]));
+  d.aiMsg = st[1];
+  const f = document.getElementById("dy-fill"), m = document.getElementById("dy-msg");
+  if (f) f.style.width = d.aiPct + "%"; if (m) m.textContent = d.aiMsg;
+}
 // Kendin Anlat kalan hak (sunucudan): doluysa ekranda söylenir, düğme kapanır
 const dyBlocked = d => !!(d.kalan && (!d.kalan.enabled || d.kalan.daily_left <= 0 || d.kalan.monthly_left <= 0));
 function dyKalanHtml(){
@@ -5612,6 +5623,7 @@ function kDuyuru(){
       <textarea id="dy-ai" rows="4" maxlength="500" placeholder="Duyurulacak şeyi yaz…" style="width:100%;font-size:18px" ${d.aiBusy?"disabled":""}>${esc(d.aiPrompt||"")}</textarea>
       <div id="dy-kalan">${dyKalanHtml()}</div>
       ${d.aiErr ? `<div class="notice bad" style="margin-top:8px">${esc(d.aiErr)}</div>` : ""}
+      ${d.aiBusy ? `<div class="dybar"><div class="tr"><div class="fl" id="dy-fill" style="width:${d.aiPct||0}%"></div></div><p id="dy-msg" class="muted">${esc(d.aiMsg||"Başlıyor…")}</p></div>` : ""}
       <button class="primary dybig" type="button" data-act="dyAi" ${d.aiBusy || dyBlocked(d) ?"disabled":""}>${d.aiBusy ? "Hazırlanıyor…" : "Oluştur"}</button>`;
   }
   const c = dyCtx(), needP = d.type==="stok" || d.type==="kampanya";
@@ -5646,16 +5658,18 @@ async function dyAct(a, t){
     const p = (d.aiPrompt||"").trim();
     if (p.length < 3){ d.aiErr = "Ne duyurmak istediğini biraz yaz."; render(true); return true; }
     if (S.mode!=="cloud" || !S.cloud?.shop){ d.aiErr = "Bunun için hesabınla giriş yapman gerekir."; render(true); return true; }
-    d.aiBusy = true; d.aiErr = ""; render(true);
+    d.aiBusy = true; d.aiErr = ""; d.aiPct = 0; d.aiMsg = ""; render(true);
     try{
       const {data, error} = await SB.functions.invoke("reklam", {body:{shop_id:S.cloud.shop.id, prompt:p}});
       if (error){ let m = ""; try{ const j = await error.context?.json?.(); m = j?.error || ""; }catch(_){} throw new Error(m || "Olmadı. İnternetini kontrol et."); }
       const id = data?.job_id; if (!id) throw new Error("Olmadı. Tekrar dene.");
-      for (let i = 0; i < 45 && !d.ai; i++){
-        await new Promise(r=>setTimeout(r, 2000));
-        const {data:j} = await SB.from("ai_jobs").select("status,result,error").eq("id", id).maybeSingle();
-        if (j?.status==="bitti") d.ai = j.result;
+      let last = "bekliyor"; dyBar(last);
+      for (let i = 0; i < 90 && !d.ai; i++){
+        await new Promise(r=>setTimeout(r, 1000));
+        const {data:j} = await SB.from("ai_jobs").select("status,result,error,steps").eq("id", id).maybeSingle();
+        if (j?.status==="bitti"){ dyBar("bitti"); d.ai = j.result; }
         else if (j?.status==="hata") throw new Error(j.error || "Hazırlanamadı.");
+        else { const ad = j?.steps?.[0]?.ad; const nx = DY_STAGE[ad] ? ad : last; dyBar(nx, nx===last); last = nx; }
       }
       if (!d.ai) throw new Error("Biraz uzun sürdü. Tekrar dene.");
     }catch(e){ d.aiErr = String(e.message || e); }
