@@ -57,7 +57,7 @@ Tek bir **Ürün Ekle** düğmesi var; barkodlu ya da barkodsuz fark etmez. Form
 Ana Sayfa > Diğer İşler > **Duyuru**: hazır yazılarla (stok geldi, cuma mesajı, bayram, açık/kapalı, günaydın, kampanya) kart hazırlanır, WhatsApp vb. uygulamalarla paylaşılır. **Kendin Anlat** ile dükkân sahibi ne duyurmak istediğini kendi cümleleriyle yazar, sunucu duyuru yazısını hazırlar ve kart olarak gösterir.
 
 - İş sunucuda (`reklam` fonksiyonu, `supabase/functions/reklam/`) aşama aşama yürür; sonuç `ai_jobs` tablosuna yazılır, uygulama bekleyip okur.
-- **Yapay zekâ anahtarı uygulamada ya da bu depoda yoktur.** Sadece Supabase > Edge Functions > Secrets içinde `ANTHROPIC_API_KEY` olarak tutulur. Anahtar yokken sistem ücretsiz taslak yazı üretir ("Yapay zekâ henüz açık değil" notuyla).
+- **Yapay zekâ anahtarı uygulamada ya da bu depoda yoktur.** Sadece Supabase > Edge Functions > Secrets içinde `GEMINI_API_KEY` (Google AI Studio, ücretsiz katmanı var) ya da `ANTHROPIC_API_KEY` olarak tutulur. Anahtar yokken sistem ücretsiz taslak yazı üretir ("Yapay zekâ henüz açık değil" notuyla).
 - Maliyet kontrolü: sadece dükkân sahibi kullanabilir, dükkân başına varsayılan günde 3 / ayda 20 üretim (`ai_limits` tablosundan değişir), aynı anda tek iş.
 - Yeni aşama (afiş görseli, video, seslendirme) `STEPS` listesine eklenir.
 
