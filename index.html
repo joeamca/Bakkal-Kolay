@@ -593,7 +593,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dyrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}.dyrow button{min-height:54px;font-size:17px;display:flex;align-items:center;justify-content:center;gap:8px}
 .dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
 .dyold{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin:0 0 8px;min-height:60px}.dyold .dyoe{font-size:28px}.dyold b{display:block}.dyold small{color:var(--muted)}
-.vbox{background:var(--accent-soft);border-radius:12px;padding:10px;margin:8px 0}.vmic{min-width:48px;font-size:22px}.vmic.rec{background:#c62828;color:#fff;animation:vpulse 1s infinite}@keyframes vpulse{50%{opacity:.6}}
+.vbox{background:var(--accent-soft);border-radius:12px;padding:10px;margin:8px 0}.vtext{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%;resize:none;min-height:56px;max-height:160px;line-height:1.35;overflow-y:auto}.vbox .row{align-items:flex-end}.vmic{min-width:48px;font-size:22px}.vmic.rec{background:#c62828;color:#fff;animation:vpulse 1s infinite}@keyframes vpulse{50%{opacity:.6}}
 .askm{padding:10px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.4}.askm.u{background:var(--accent-soft);margin-left:28px}.askm.a{border:1px solid var(--accent-soft);margin-right:28px}.askchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.askchips button{min-height:44px}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
@@ -1287,7 +1287,7 @@ function render(keep){
   document.documentElement.classList.toggle("big", !!S.settings?.bigText);
   renderToast();
   const saved = {};
-  if (keep) v.querySelectorAll("input,select").forEach(el=>{ if (el.id && el.type!=="file") saved[el.id] = (el.type==="checkbox"||el.type==="radio") ? el.checked : el.value; });
+  if (keep) v.querySelectorAll("input,select,textarea").forEach(el=>{ if (el.id && el.type!=="file") saved[el.id] = (el.type==="checkbox"||el.type==="radio") ? el.checked : el.value; });
   const openHow = keep ? [...v.querySelectorAll("details[open]")].map(d=>d.dataset.id).filter(Boolean) : [];
   const VIEWS = {tedarik:viewSup, satis:viewPos, rapor:viewReport, yonetim:viewAdmin, "y-ozet":viewAdminHome, "y-basvuru":viewAdminSignups, "y-dukkan":viewAdminShops, "y-hesap":viewAdminAccount, ana:viewHome, siparis:viewOrder, fatura:viewInvoice, veresiye:viewVeresiye, menu:viewMenu, stok:viewStock, plan:viewPlan, maliyet:viewCost, fire:viewFire, kar:viewProfit, urunler:viewProducts, ayarlar:viewSettings};
   const pre = ["fire","kar","urunler","ayarlar","yonetim","rapor"].includes(S.tab) && !S.editId ? backLink() : "";
@@ -1295,6 +1295,7 @@ function render(keep){
   v.innerHTML = (S.guide ? guideCard() : "") + pre + ((window.KOLAY && KV[S.tab]) || VIEWS[S.tab] || viewHome)();
   attachSearch();
   queueMicrotask(histSync);
+  queueMicrotask(()=>voiceGrow(document.getElementById("v-text")));
   if (S.tab==="satis" && (S.posView||"sat")==="sat") posFocus();
   if (keep){
     for (const [id,val] of Object.entries(saved)){ const el = document.getElementById(id); if (!el) continue;
@@ -4035,21 +4036,23 @@ function camScan(target){
 function posFocus(){ setTimeout(()=>{ if (S.posEditK) return; const a = document.activeElement; if (a && a!==document.body && a.id!=="pos-scan" && /INPUT|SELECT|TEXTAREA/.test(a.tagName)) return; document.getElementById("pos-scan")?.focus(); }, 0); }
 /* ---- Sesli komut (KAN-8): konuş ya da yaz; yapay zekâ taslak çıkarır, kaydı kullanıcı onaylar ---- */
 const SpeechR = window.SpeechRecognition || window.webkitSpeechRecognition;
-let voiceRec = null;
+let voiceRec = null, voiceBad = false;
+const voiceGrow = el => { if (!el) return; el.style.height = "auto"; el.style.height = Math.min(el.scrollHeight + 2, 160) + "px"; };
 function voiceStop(){ try{ voiceRec && voiceRec.stop(); }catch(_){} voiceRec = null; }
 function voiceMic(inputId, btn, after){
   if (!SpeechR) return;
   if (voiceRec){ voiceStop(); return; }
   const el = document.getElementById(inputId); if (!el) return;
+  if (voiceBad){ el.value = ""; voiceGrow(el); const m0 = document.getElementById("v-msg"); if (m0) m0.textContent = ""; voiceBad = false; }   // önceki deneme hata verdiyse temiz başla
   const rec = new SpeechR(); rec.lang = "tr-TR"; rec.interimResults = true; rec.continuous = false; rec.maxAlternatives = 1;
   const base = el.value.trim(), done = () => { voiceRec = null; if (btn) btn.classList.remove("rec"); };
-  rec.onresult = e => { let t = ""; for (const r of e.results) t += r[0].transcript; el.value = (base ? base + " " : "") + t; };
+  rec.onresult = e => { let t = ""; for (const r of e.results) t += r[0].transcript; el.value = (base ? base + " " : "") + t; voiceGrow(el); };
   rec.onend = () => { done(); if (after) after(); };
-  rec.onerror = e => { done(); const m = document.getElementById("v-msg") || document.getElementById("ask-msg"); if (m) m.textContent = e.error==="not-allowed" ? "Mikrofon izni verilmedi. Klavyedeki mikrofon düğmesini kullanabilirsin." : "Ses alınamadı. Tekrar dene ya da yaz."; };
+  rec.onerror = e => { done(); voiceBad = true; const m = document.getElementById("v-msg") || document.getElementById("ask-msg"); if (m) m.textContent = e.error==="not-allowed" ? "Mikrofon izni verilmedi. Klavyedeki mikrofon düğmesini kullanabilirsin." : "Ses alınamadı. Tekrar dene ya da yaz."; };
   voiceRec = rec; if (btn) btn.classList.add("rec");
   try{ rec.start(); }catch(_){ done(); }
 }
-const voiceBox = (m, ph) => `<div class="vbox"><div class="row nowrap"><input id="v-text" autocomplete="off" enterkeyhint="send" maxlength="400" placeholder="${esc(ph)}" aria-label="Söyle ya da yaz" style="flex:1">${SpeechR ? `<button type="button" class="vmic" data-act="vMic" aria-label="Konuş">🎤</button>` : ""}<button type="button" class="primary" data-act="vSend" data-m="${m}">Gönder</button>${m==="sat" ? `<button type="button" class="link" data-act="vClose" aria-label="Kapat">×</button>` : ""}</div><p id="v-msg" class="small muted" style="margin:6px 0 0">${SpeechR ? "Mikrofona bas ve söyle; ya da klavyedeki mikrofonu kullan." : "Klavyedeki mikrofon düğmesiyle söyleyebilir ya da yazabilirsin."}</p></div>`;
+const voiceBox = (m, ph) => `<div class="vbox"><div class="row nowrap"><textarea id="v-text" class="vtext" rows="2" autocomplete="off" enterkeyhint="send" maxlength="400" placeholder="${esc(ph)}" aria-label="Söyle ya da yaz" style="flex:1"></textarea>${SpeechR ? `<button type="button" class="vmic" data-act="vMic" aria-label="Konuş">🎤</button>` : ""}<button type="button" class="primary" data-act="vSend" data-m="${m}">Gönder</button>${m==="sat" ? `<button type="button" class="link" data-act="vClose" aria-label="Kapat">×</button>` : ""}</div><p id="v-msg" class="small muted" style="margin:6px 0 0">${SpeechR ? "Mikrofona bas ve söyle; ya da klavyedeki mikrofonu kullan." : "Klavyedeki mikrofon düğmesiyle söyleyebilir ya da yazabilirsin."}</p></div>`;
 function eanOk(c){ if (!/^(\d{8}|\d{12,14})$/.test(c)) return false; const d = c.split("").map(Number), chk = d.pop(); let t = 0; d.reverse().forEach((x,i)=>{ t += x*(i%2===0 ? 3 : 1); }); return (10 - t%10)%10 === chk; }
 async function voiceSend(m){
   const el = document.getElementById("v-text"), msg = document.getElementById("v-msg"), btn = document.querySelector('[data-act="vSend"]');
@@ -4062,8 +4065,8 @@ async function voiceSend(m){
     if (m==="sat"){ pl = S.products.slice(0, 600); body.urunler = pl.map(p=>p.name); }
     const {data, error} = await SB.functions.invoke("asistan", {body});
     if (error){ let e = ""; try{ e = (await error.context?.json?.())?.error || ""; }catch(_){} throw new Error(e || "Olmadı. İnternetini kontrol et."); }
-    if (m==="sat") voiceApplySale(data, pl); else voiceApplyProduct(data);
-  }catch(e){ say(String(e.message||e)); }
+    voiceBad = false; if (m==="sat") voiceApplySale(data, pl); else voiceApplyProduct(data);
+  }catch(e){ voiceBad = true; say(String(e.message||e)); }
   finally{ if (btn && btn.isConnected){ btn.disabled = false; btn.textContent = "Gönder"; } }
 }
 // Söylenen satışı SEPETE koyar; ödeme düğmesine kullanıcı basar (yapay zekâ hiçbir şeyi kendi kaydetmez)
@@ -4092,6 +4095,8 @@ function voiceApplySale(d, pl){
   S.posWarn = [`Sepete eklendi: ${added.join(", ")}.`, miss.length ? `Bulunamadı: ${miss.join(", ")}.` : "", warn.join(". ") + (warn.length ? "." : ""), sw || "",
     d.odeme ? `Söylediğin ödeme: ${PAY[d.odeme]}.` : "", "Kontrol edip ödeme düğmesine bas."].filter(Boolean).join(" ");
   render(); posFocus();
+  const w = S.posWarn; clearTimeout(voiceApplySale.t);
+  voiceApplySale.t = setTimeout(()=>{ if (S.posWarn===w){ S.posWarn = null; if (S.tab==="satis") render(true); } }, (miss.length || warn.length || sw) ? 15000 : 7000);
 }
 // Söylenen ürün bilgilerini formun kutularına yazar; Kaydet'e kullanıcı basar
 function voiceApplyProduct(d){
@@ -4111,6 +4116,7 @@ document.addEventListener("click", ev=>{ const t = ev.target.closest && ev.targe
   else if (a==="vMic") voiceMic("v-text", t);
   else if (a==="vSend") voiceSend(t.dataset.m);
 });
+document.addEventListener("input", ev=>{ if (ev.target && ev.target.id==="v-text") voiceGrow(ev.target); });
 document.addEventListener("keydown", ev=>{ if (ev.key==="Enter" && ev.target && ev.target.id==="v-text"){ ev.preventDefault(); ev.stopPropagation(); document.querySelector('[data-act="vSend"]')?.click(); } }, true);
 
 /* ---- Asistana Sor (KAN-18): Gemini araç çağırır; araçlar burada, SADECE okur, kayıt değiştirmez ---- */
