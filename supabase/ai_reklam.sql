@@ -39,3 +39,7 @@ create policy ai_jobs_read on public.ai_jobs for select to authenticated using (
 
 -- ai_begin'i yalnızca edge function (service role) çağırır; yetki açıkça verilmeli:
 grant execute on function public.ai_begin(uuid, uuid, text) to service_role;
+
+-- Edge function tablolara service_role ile erişir; yetki açıkça verilmeli:
+grant select, insert, update on public.ai_jobs to service_role;
+grant select on public.ai_limits to service_role;

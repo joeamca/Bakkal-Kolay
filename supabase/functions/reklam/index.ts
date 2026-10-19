@@ -40,8 +40,12 @@ function cikar(t: string): Out {
 async function yaziGemini(c: Ctx): Promise<Out | null> {
   const key = Deno.env.get("GEMINI_API_KEY");
   if (!key) return null;
-  const model = Deno.env.get("AI_TEXT_MODEL") || "gemini-3.8-flash";
-  const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`, {
+  const ana = Deno.env.get("AI_TEXT_MODEL") || "gemini-3.8-flash";
+  // 503/429 (yoğunluk) için: ana modeli bir kez daha dene, sonra yedek modele geç
+  const sira = [ana, ana, "gemini-3.6-flash"];
+  let r: Response | null = null;
+  for (let k = 0; k < sira.length; k++) {
+    r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(sira[k])}:generateContent`, {
     method: "POST",
     headers: { "x-goog-api-key": key, "content-type": "application/json" },
     body: JSON.stringify({
@@ -51,6 +55,11 @@ async function yaziGemini(c: Ctx): Promise<Out | null> {
     }),
     signal: AbortSignal.timeout(25000),
   });
+    if (r.ok || ![429, 500, 503].includes(r.status)) break;
+    console.log("gemini yogun", sira[k], r.status);
+    await new Promise((res) => setTimeout(res, 1200));
+  }
+  if (!r) throw new Error("gemini yok");
   if (!r.ok) throw new Error("gemini servisi " + r.status);
   const d = await r.json();
   return cikar(String(d?.candidates?.[0]?.content?.parts?.[0]?.text || ""));
@@ -102,7 +111,8 @@ async function run(db: any, jobId: string, c: Ctx) {
     acc = { ...acc, ...(await s.run(c, acc)) };
     steps.push({ ad: s.ad, ms: Date.now() - t0 });
   }
-  await db.from("ai_jobs").update({ status: "bitti", mode: acc.mode || "taslak", steps, result: acc, finished_at: new Date().toISOString() }).eq("id", jobId);
+  const { error: ue } = await db.from("ai_jobs").update({ status: "bitti", mode: acc.mode || "taslak", steps, result: acc, finished_at: new Date().toISOString() }).eq("id", jobId);
+  if (ue) throw new Error("kayit " + ue.message);
 }
 
 Deno.serve(async (req) => {
