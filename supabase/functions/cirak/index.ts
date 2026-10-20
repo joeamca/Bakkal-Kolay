@@ -13,6 +13,10 @@ function sidOf(token: string): string {
 }
 
 Deno.serve(async (req) => {
+  try { return await handle(req); } catch (e) { console.log("cirak beklenmeyen hata", String(e)); return j({ error: "Sunucu hatası: " + String(e).slice(0, 160) }, 500); }
+});
+
+async function handle(req: Request): Promise<Response> {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: Record<string, unknown> = {};
   try { b = await req.json(); } catch (_) { /* boş gövde */ }
@@ -25,13 +29,16 @@ Deno.serve(async (req) => {
   const act = String(b.action || "");
 
   // magic link ile o kullanıcı için tek kullanımlık giriş anahtarı üret
+  let linkErr = "";
   const linkFor = async (userId: string) => {
-    const { data: ue } = await db.auth.admin.getUserById(userId);
+    const { data: ue, error: e1 } = await db.auth.admin.getUserById(userId);
     const email = ue?.user?.email;
-    if (!email) return null;
+    if (!email) { linkErr = "kullanıcı bulunamadı " + (e1?.message || ""); console.log("getUserById hata", linkErr); return null; }
     const { data, error } = await db.auth.admin.generateLink({ type: "magiclink", email });
-    if (error) { console.log("generateLink hata", error.message); return null; }
-    return data?.properties?.hashed_token || null;
+    if (error) { linkErr = error.message; console.log("generateLink hata", error.message); return null; }
+    const th = data?.properties?.hashed_token || null;
+    if (!th) linkErr = "anahtar üretilemedi";
+    return th;
   };
 
   if (act === "gir") {
@@ -46,9 +53,9 @@ Deno.serve(async (req) => {
     await db.from("cirak_oturum").delete().lt("created_at", new Date(Date.now() - 30 * 86400000).toISOString());
     await db.from("cirak_oturum").delete().eq("owner_id", uid).eq("staff_id", staff).is("sid", null);
     const th = await linkFor(staff);
-    if (!th) return j({ error: "Çırak hesabına geçilemedi." }, 500);
+    if (!th) return j({ error: "Çırak hesabına geçilemedi (" + linkErr.slice(0, 120) + ")." }, 500);
     const { data: row, error } = await db.from("cirak_oturum").insert({ shop_id: shop, owner_id: uid, staff_id: staff }).select("nonce").single();
-    if (error || !row) return j({ error: "Kaydedilemedi." }, 500);
+    if (error || !row) return j({ error: "Kaydedilemedi (" + String(error?.message || "").slice(0, 120) + ")." }, 500);
     return j({ token_hash: th, nonce: row.nonce });
   }
 
@@ -77,10 +84,10 @@ Deno.serve(async (req) => {
     if (error) { console.log("pin_check hata", error.message); return j({ error: "Sunucu hazır değil." }, 500); }
     if (!chk?.ok) return j(chk || { ok: false, reason: "wrong" });
     const th = await linkFor(row.owner_id);
-    if (!th) return j({ error: "Sahip hesabına geçilemedi." }, 500);
+    if (!th) return j({ error: "Sahip hesabına geçilemedi (" + linkErr.slice(0, 120) + ")." }, 500);
     await db.from("cirak_oturum").delete().eq("nonce", row.nonce);
     try { await db.auth.admin.signOut(token, "local"); } catch (_) { /* oturum zaten kapanmış olabilir */ }
     return j({ ok: true, token_hash: th });
   }
   return j({ error: "Bilinmeyen işlem." }, 400);
-});
+}

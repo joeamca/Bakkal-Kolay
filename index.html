@@ -1297,6 +1297,7 @@ function render(keep){
   attachSearch();
   queueMicrotask(histSync);
   queueMicrotask(()=>voiceGrow(document.getElementById("v-text")));
+  queueMicrotask(placeErr);
   if (S.tab==="satis" && (S.posView||"sat")==="sat") posFocus();
   if (keep){
     for (const [id,val] of Object.entries(saved)){ const el = document.getElementById(id); if (!el) continue;
@@ -1881,6 +1882,21 @@ function stockStatus(p, st){
 }
 const SKIND = [["ok","Yeterli","var(--c1)"],["low","Yetmeyebilir","var(--c2)"],["out","Bitti","var(--c3)"],["over","Fazla","var(--c4)"],["unk","Bilinmiyor","var(--c5)"]];
 const backLink = () => window.KOLAY ? `<button class="link back" data-act="kGo" data-tab="k-daha">${ic("back",18)} Diğer İşler</button>` : `<button class="link back" data-act="goto" data-tab="menu" data-plain="1">${ic("back",18)} Menü</button>`;
+/* Hata uyarısı sayfanın tepesinde değil, hatanın olduğu düğmenin hemen altında görünsün. */
+function placeErr(){
+  try{
+    const m = S.msg; if (!m || m.kind!=="bad" || !S.lastAct || S.locked) return;
+    const v = document.getElementById("view"); if (!v) return;
+    const notes = [...v.querySelectorAll(".notice.bad")].filter(n=>n.textContent===m.text && !n.closest(".askpend")); if (!notes.length) return;
+    const n = notes[0];
+    const sel = `[data-act="${S.lastAct.act}"]` + (S.lastAct.id ? `[data-id="${S.lastAct.id}"]` : "");
+    const btn = v.querySelector(sel); if (!btn || btn.closest(".notice")) return;
+    const host = btn.closest(".row,.supbtns,.btns") || btn;
+    if (host.nextElementSibling === n) return;
+    host.insertAdjacentElement("afterend", n); n.style.marginTop = "8px"; n.classList.add("inl");
+    setTimeout(()=>{ try{ n.scrollIntoView({block:"center", behavior:"smooth"}); }catch(_){} }, 40);
+  }catch(_){}
+}
 const noticeHtml = () => S.msg ? `<div class="notice ${S.msg.kind||"ok"}">${esc(S.msg.text)}</div>` : "";
 
 /* ---------- MRP: ihtiyaç planı ---------- */
@@ -2700,6 +2716,7 @@ async function seedDemo(){
 /* ---------- Olaylar ---------- */
 document.addEventListener("click", async ev=>{
   const t = ev.target.closest("[data-act],nav.tabs button"); if (!t) return;
+  S.lastAct = t.dataset.act ? {act:t.dataset.act, id:t.dataset.id||""} : null;
   if (t.dataset.tab && !t.dataset.act){ syncInv(); S.tab=t.dataset.tab; S.msg=null; S.fireImpact=null; S.vCust=null; S.vEditCust=null; S.vMode=null; S.editId=null; render(); window.scrollTo(0,0); return; }
   const a = t.dataset.act, id = t.dataset.id;
   try{
@@ -3142,6 +3159,11 @@ async function loadPeople(){ if (!C.shop || !SB) return; try{ const {data, error
 /* Çalışan (staff) yetkisi: kasa, kâr, rapor, duyuru ve yedek ekranlarını görmez */
 const STAFF_NO = new Set(["fire","hareket","kar","k-kar","rapor","kasa","k-kasa","maliyet","plan","duyuru","sor"]);
 /* Çırak modu: sahip telefonu çırağa bırakırken telefon çırağın KENDİ oturumuna geçer (sunucu çırak olarak görür); sahibe dönüş sunucuda PIN ile yapılır. */
+async function fnMsg(error, data, fb){   // Edge function hata metnini oku (non-2xx'te yanıt error.context içindedir)
+  if (data && data.error) return data.error;
+  try{ const j = await error?.context?.json?.(); if (j && j.error) return j.error; }catch(_){}
+  return fb;
+}
 const CIRAK_KEY = "bd-cirak-gecis";
 function cirakMark(){ try{ return JSON.parse(localStorage.getItem(CIRAK_KEY)||"null"); }catch(_){ return null; } }
 function cirakOn(){ if (!C.user) return false; const m = cirakMark(); return !!m && m.staff===C.user.id; }
@@ -3494,18 +3516,18 @@ async function pinAct(a, t){
     t.disabled = true; let switched = false;
     try{
       const {data, error} = await SB.functions.invoke("cirak", {body:{action:"gir", shop_id:shopId, staff_id:staffId}});
-      if (error || !data?.token_hash) throw new Error(data?.error || "Geçilemedi. İnterneti kontrol edip tekrar dene.");
+      if (error || !data?.token_hash) throw new Error(await fnMsg(error, data, "Geçilemedi. İnterneti kontrol edip tekrar dene."));
       pinSave(null); C.leaving = true;                       // sahibin telefondaki PIN kopyası ve önbelleği silinir
       const r = await SB.auth.verifyOtp({token_hash:data.token_hash, type:"magiclink"}); if (r.error) throw r.error;
       switched = true;
-      const bg = await SB.functions.invoke("cirak", {body:{action:"bagla", nonce:data.nonce}}); if (bg.error || !bg.data?.ok) throw new Error("Bağlanamadı.");
+      const bg = await SB.functions.invoke("cirak", {body:{action:"bagla", nonce:data.nonce}}); if (bg.error || !bg.data?.ok) throw new Error(await fnMsg(bg.error, bg.data, "Çırak oturumu bağlanamadı."));
       cirakSet({staff:staffId, owner:ownerId, shop:shopId});
       C.user = null; try{ localStorage.removeItem(BKEY); }catch(_){}
       location.reload();
     }catch(e){
       C.leaving = false;
       if (switched){ C.loginErr = "Çırak moduna geçiş tamamlanamadı. Şifrenle tekrar gir."; await doLogout(true); return true; }
-      S.msg = {kind:"bad", text: (e && e.message) || "Geçilemedi."}; S.cirakPick = null; render(true);
+      S.msg = {kind:"bad", text: (e && e.message) || "Geçilemedi."}; render(true);
     }
     return true; }
   if (a==="cirakExit"){ if (!cirakOn()) return true; S.pinExitCirak = true; S.locked = true; S.pinBuf = ""; S.pinErr = null; S.pinForgot = false; render(); return true; }
@@ -3523,7 +3545,7 @@ async function pinAct(a, t){
     const pin = S.pinBuf; S.pinBuf = ""; S.pinBusy = true; render();
     try{
       const {data, error} = await SB.functions.invoke("cirak", {body:{action:"don", pin}});
-      if (error || !data) throw error || new Error("yanıt yok");
+      if (error || !data){ const m = await fnMsg(error, data, ""); if (m){ S.pinBusy = false; S.pinErr = m; render(); return true; } throw error || new Error("yanıt yok"); }
       if (data.ok && data.token_hash){
         C.leaving = true; const r = await SB.auth.verifyOtp({token_hash:data.token_hash, type:"magiclink"}); if (r.error) throw r.error;
         cirakSet(null); S.pinExitCirak = false; S.pinBusy = false; C.user = null; try{ localStorage.removeItem(BKEY); }catch(_){}
