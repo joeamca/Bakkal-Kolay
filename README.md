@@ -25,6 +25,7 @@ Alt menüde sadece 5 bölüm var:
 | **Kasa** | Kasada olması gereken para; Para Koy, Para Al, Günü Kapat; sebep tek dokunuşla seçilir, toptancı ya da ekmekçi seçilince "Kime ödedin?" sorulur |
 | **Stok** | Her ürünün yanında − / + ile raftaki sayı; Ürün Ekle ve Mal Geldi; ürüne dokununca düzenleme |
 | **Kâr** | Satış − malın maliyeti − giderler = net kâr; bugün, bu hafta, bu ay, bu yıl; Excel'e indirme |
+| **Excel yedek / geri yükleme** | Ürünler (barkodlar, kiloyla satış, hızlı düğme, terazi kodu, satış fiyatı tarihi), hareketler, veresiye müşterileri ve kayıtları, tedarikçi hesabı, **Satışlar** ve **Kasa** sayfaları Excel'e iner; aynı dosya geri yüklenince kayıtlar eksiksiz döner, tekrar yüklemek kayıtları ikiye katlamaz |
 
 Ana Sayfa'nın altındaki **Diğer İşler** (ya da sağ üstteki ayar düğmesi): satış raporları, veresiye, tedarikçiler, bildirimler ve ayarlar.
 

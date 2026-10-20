@@ -2326,33 +2326,39 @@ const numOr = (v, def=null) => { if (v===""||v==null) return def; const n = Numb
 async function exportXlsx(){
   try{
     const X = await loadXLSX(), wb = X.utils.book_new(), nm = id => (S.products.find(p=>p.id===id)||{}).name || "";
+    const bcTxt = p => (p.barcodes||[]).map(b=>b.c + ((Number(b.q)||1)>1 ? ":" + b.q : "")).join(" | ");
     const recTxt = p => isMade(p) ? p.recipe.map(r=>`${nm(r.id)} = ${r.qty}`).join("; ") : "";
     const prod = S.products.map(p=>{
       if (isMade(p)) return {"Ürün":p.name, "Tedarikçi":"", "Bozulabilir":"", "Temel ürün":"", "Koli içi":"", "Kaç günde bir":"", "İlk tahmin (haftalık)":"", "Başlangıç stoğu":"", "Alış TL":"", "Satış TL":p.salePrice??"",
-        "Bitti başlangıcı":"", "Diğer adlar":"", "Eklenme":localStamp(p.createdAt||Date.now()), "Birim":"tane", "Raf ömrü (gün)":"", "Kaç teslimatta bir":"", "Hazırlanan (reçeteli)":"Evet", "Reçete":recTxt(p), "Günlük hazırlama":p.dailyEst??"",
+        "Bitti başlangıcı":"", "Diğer adlar":"", "Eklenme":localStamp(p.createdAt||Date.now()), "Birim":"tane", "Raf ömrü (gün)":"", "Kaç teslimatta bir":"", "Hazırlanan (reçeteli)":"Evet", "Reçete":recTxt(p), "Günlük hazırlama":p.dailyEst??"", "Barkodlar":bcTxt(p), "Kiloyla satılır":yesno(p.byWeight), "Hızlı düğme":yesno(p.quick), "Terazi kodu":p.plu||"", "Satış fiyatı tarihi":p.salePriceAt||"",
         "— Hesaplanan —":"", "Haftalık satış (tahmini)":"", "Önerilen sipariş":"", "Rafta (tahmini)":"", "Son alış TL":"", "Adet kârı TL":"", "Fire oranı %":"", "Kod":p.id};
       const st=stats(p), m=st.money, sh=stockNow(p,st);
       return {"Ürün":p.name, "Tedarikçi":p.supplier||"", "Bozulabilir":yesno(p.perishable), "Temel ürün":yesno(p.core), "Koli içi":p.caseSize||1,
         "Kaç günde bir":p.intervalDays||7, "İlk tahmin (haftalık)":p.initialWeekly??"", "Başlangıç stoğu":p.initialStock??"", "Alış TL":p.buyPrice??"", "Satış TL":p.salePrice??"",
         "Bitti başlangıcı":p.outSince?localStamp(p.outSince):"", "Diğer adlar":(p.aliases||[]).join(" | "), "Eklenme":localStamp(p.createdAt||Date.now()),
-        "Birim":p.unit||"tane", "Raf ömrü (gün)":p.shelfDays??"", "Kaç teslimatta bir":Number(p.everyN)||1, "Hazırlanan (reçeteli)":"", "Reçete":"", "Günlük hazırlama":"",
+        "Birim":p.unit||"tane", "Raf ömrü (gün)":p.shelfDays??"", "Kaç teslimatta bir":Number(p.everyN)||1, "Hazırlanan (reçeteli)":"", "Reçete":"", "Günlük hazırlama":"", "Barkodlar":bcTxt(p), "Kiloyla satılır":yesno(p.byWeight), "Hızlı düğme":yesno(p.quick), "Terazi kodu":p.plu||"", "Satış fiyatı tarihi":p.salePriceAt||"",
         "— Hesaplanan —":"", "Haftalık satış (tahmini)":+st.weekly.toFixed(1), "Önerilen sipariş":st.q, "Rafta (tahmini)":sh==null?"":Math.round(sh),
         "Son alış TL":m.buy??"", "Adet kârı TL":m.unit==null?"":+m.unit.toFixed(2), "Fire oranı %":+(st.fireRate*100).toFixed(1), "Kod":p.id}; });
-    const supLed = S.events.filter(isSupLedger).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({"Tarih":localStamp(e.date), "Tedarikçi":supName(e.supplierId), "İşlem":e.type==="tborc"?"Alım / borç":"Ödeme", "Tutar TL":Number(e.amount), "Not":e.note||"", "Kasadan":e.cashId?"Evet":"", "Kod":e.id}));
+    const supLed = S.events.filter(isSupLedger).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({"Tarih":localStamp(e.date), "Tedarikçi":supName(e.supplierId), "İşlem":e.type==="tborc"?"Alım / borç":"Ödeme", "Tutar TL":Number(e.amount), "Not":e.note||"", "Kasadan":e.cashId?"Evet":"", "Kasa kodu":e.cashId||"", "Fatura kodu":e.invKey||"", "Tedarikçi kodu":e.supplierId||"", "Kod":e.id}));
     const hrFrom = {}, hrDiff = {}; for (const r of hareketRows()) if (r.e.type==="sayim"){ hrFrom[r.e.id] = r.from; hrDiff[r.e.id] = r.diff; }
     const mov = S.events.filter(e=>!isLedger(e) && !isSupLedger(e)).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({"Tarih":localStamp(e.date), "Ürün":e.productId==="-"?"":nm(e.productId), "Hareket":TYP[e.type]||e.type,
       "Miktar":e.type==="bos"?"":e.qty, "Gün":e.type==="bos"?e.days:"", "Adet fiyatı TL":e.price??"", "Fatura no":e.invoiceNo||"", "Tedarikçi":e.supplier||"",
       "Eski adet":e.type==="sayim" ? (hrFrom[e.id] ?? "") : "", "Fark":e.type==="sayim" ? (hrDiff[e.id] ?? "") : "", "Yapan":(S.mode==="cloud" && C.by ? (whoName(C.by["event:"+e.id])||"") : ""), "Neden":e.reason?(WHY[e.reason]||e.reason):"", "Not":e.note||"", "Ürün kodu":e.productId, "Fatura kodu":e.invKey||"", "Kod":e.id}));
     const sup = Object.values(S.suppliers).map(x=>({"Tedarikçi":x.name||x.id, "Araç günleri":(x.days||[]).slice().sort((a,b)=>WEEK.indexOf(a)-WEEK.indexOf(b)).map(d=>DS[d]).join(", "), "Sipariş kaç gün önce":Number(x.lead)||0}));
     const cname = id => S.customers[id]?.name || "";
-    const cust = Object.values(S.customers||{}).map(c=>({"Ad":c.name, "Telefon":c.phone||"", "Borç sınırı TL":c.limit??"", "Not":c.note||"", "Bakiye TL (hesaplanan)":custStats(c).bal, "Kod":c.id}));
-    const led = S.events.filter(isLedger).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({"Tarih":localStamp(e.date), "Müşteri":cname(e.customerId), "İşlem":e.type==="borc"?"Veresiye":"Ödeme", "Tutar TL":Number(e.amount), "Not":e.note||"", "Müşteri kodu":e.customerId, "Kod":e.id}));
+    const cust = Object.values(S.customers||{}).map(c=>({"Ad":c.name, "Telefon":c.phone||"", "Borç sınırı TL":c.limit??"", "Not":c.note||"", "Bakiye TL (hesaplanan)":custStats(c).bal, "Eklenme":c.createdAt||"", "Kod":c.id}));
+    const led = S.events.filter(isLedger).sort((a,b)=>a.date.localeCompare(b.date)).map(e=>({"Tarih":localStamp(e.date), "Müşteri":cname(e.customerId), "İşlem":e.type==="borc"?"Veresiye":"Ödeme", "Tutar TL":Number(e.amount), "Not":e.note||"", "Müşteri kodu":e.customerId, "Satış kodu":e.saleId||"", "Kod":e.id}));
+    const itTxt = x => (x.it||[]).map(i=>`${fmt(Math.abs(i.q),3)} ${i.n} × ${i.u}`).join("; ");
+    const sal = S.sales.slice().sort((a,b)=>String(a.d).localeCompare(String(b.d))).map(x=>({"Tarih":localStamp(x.d), "Tutar TL":Number(x.tot), "Ödeme":PAY[x.pay]||x.pay, "Müşteri":x.c ? cname(x.c) : "", "İade":x.r?"Evet":"", "İptal":x.x?"Evet":"",
+      "Kalemler":itTxt(x), "Verilen TL":x.al??"", "Kod":x.id, "Ham (geri yükleme için, değiştirme)":JSON.stringify(x)}));
+    const kas = S.cash.slice().sort((a,b)=>String(a.d).localeCompare(String(b.d))).map(x=>({"Tarih":localStamp(x.d), "İşlem":CASH_T[x.t]||x.t, "Tutar TL":Number(x.a), "Neden":x.r||"", "Not":x.n||"",
+      "Sayılan TL":x.say??"", "Beklenen TL":x.beklenen??"", "Fark TL":x.fark??"", "Bırakılan TL":x.birak??"", "Kod":x.id, "Ham (geri yükleme için, değiştirme)":JSON.stringify(x)}));
     const w = dayW();
     const set = [...WEEK.map(d=>({"Ayar":"Gün: "+DN[d], "Değer": w[d]>1?"Yoğun":w[d]<1?"Sakin":"Normal"})),
       ...specials().map(x=>({"Ayar":"Özel gün: "+x.d, "Değer":(SPECIAL[x.k]?.t||"")+" | "+(x.name||"")})),
       {"Ayar":"Paranın aylık maliyeti %", "Değer":S.settings?.monthlyRate??""}, {"Ayar":"Sipariş başına emek TL", "Değer":S.settings?.orderCost??""}, {"Ayar":"Dükkân adı", "Değer":S.settings?.shopName??""}];
     const add = (rows, name, blank) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows.length?rows:[blank]), name);
-    add(prod, "Ürünler", {"Ürün":""}); add(mov, "Hareketler", {"Tarih":""}); add(supLed, "Tedarikçi hesabı", {"Tarih":""}); add(sup, "Tedarikçiler", {"Tedarikçi":""}); add(cust, "Müşteriler", {"Ad":""}); add(led, "Veresiye", {"Tarih":""}); add(set, "Ayarlar", {"Ayar":""});
+    add(prod, "Ürünler", {"Ürün":""}); add(mov, "Hareketler", {"Tarih":""}); add(supLed, "Tedarikçi hesabı", {"Tarih":""}); add(sup, "Tedarikçiler", {"Tedarikçi":""}); add(cust, "Müşteriler", {"Ad":""}); add(led, "Veresiye", {"Tarih":""}); add(sal, "Satışlar", {"Tarih":""}); add(kas, "Kasa", {"Tarih":""}); add(set, "Ayarlar", {"Ayar":""});
     const buf = X.write(wb, {type:"array", bookType:"xlsx"});
     try{ localStorage.setItem("bdo-son-yedek", String(Date.now())); }catch(_){}
     const how = await saveFile(`bakkal-defteri-${ymd(Date.now())}.xlsx`, buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -2381,8 +2387,8 @@ async function readXlsx(file){
     const X = await loadXLSX();
     const wb = X.read(await file.arrayBuffer(), {type:"array", cellDates:true});
     const sheet = n => { const k = wb.SheetNames.find(x=>norm(x)===norm(n)); return k ? X.utils.sheet_to_json(wb.Sheets[k], {defval:""}) : []; };
-    const P = sheet("Ürünler"), H = sheet("Hareketler"), T = sheet("Tedarikçiler"), A = sheet("Ayarlar"), MU = sheet("Müşteriler"), VE = sheet("Veresiye");
-    if (!P.length && !H.length && !MU.length) throw {message:"Dosyada 'Ürünler' ya da 'Hareketler' sayfası bulunamadı. Bu uygulamadan alınmış bir Excel dosyası seç."};
+    const P = sheet("Ürünler"), H = sheet("Hareketler"), T = sheet("Tedarikçiler"), A = sheet("Ayarlar"), MU = sheet("Müşteriler"), VE = sheet("Veresiye"), SL = sheet("Satışlar"), KS = sheet("Kasa"), TH = sheet("Tedarikçi hesabı");
+    if (!P.length && !H.length && !MU.length && !SL.length) throw {message:"Dosyada 'Ürünler' ya da 'Hareketler' sayfası bulunamadı. Bu uygulamadan alınmış bir Excel dosyası seç."};
     const prods = [], byName = {};
     for (const p of S.products) byName[norm(p.name)] = p.id;
     let pNew = 0, pUpd = 0;
@@ -2398,7 +2404,10 @@ async function readXlsx(file){
         aliases:String(r["Diğer adlar"]||"").split("|").map(x=>x.trim()).filter(Boolean),
         createdAt: parseStamp(r["Eklenme"]) || old?.createdAt || nowIso(),
         unit:String(r["Birim"]||"").trim()||old?.unit||"tane", shelfDays:numOr(r["Raf ömrü (gün)"]), everyN:Math.max(1, numOr(r["Kaç teslimatta bir"],1)),
-        _made:isYes(r["Hazırlanan (reçeteli)"]), _rec:String(r["Reçete"]||""), dailyEst:numOr(r["Günlük hazırlama"])});
+        _made:isYes(r["Hazırlanan (reçeteli)"]), _rec:String(r["Reçete"]||""), dailyEst:numOr(r["Günlük hazırlama"]),
+        ...("Barkodlar" in r ? {barcodes:String(r["Barkodlar"]||"").split("|").map(x=>x.trim()).filter(Boolean).map(x=>{ const [c,q] = x.split(":"); return {c:c.replace(/\D/g,""), q:Number(q)||1}; }).filter(b=>b.c),
+          byWeight:isYes(r["Kiloyla satılır"]), quick:isYes(r["Hızlı düğme"]), plu:String(r["Terazi kodu"]||"").trim()||null,
+          salePriceAt:(String(r["Satış fiyatı tarihi"]||"").trim() && Date.parse(String(r["Satış fiyatı tarihi"]))) ? String(r["Satış fiyatı tarihi"]).trim() : (old?.salePriceAt||null)} : {})});
       byName[norm(name)] = id;
     }
     for (const x of prods){
@@ -2422,6 +2431,7 @@ async function readXlsx(file){
         invoiceNo:String(r["Fatura no"]||"").trim()||null, supplier:String(r["Tedarikçi"]||"").trim()||null, reason:whyKey, note:String(r["Not"]||"").trim()||null,
         invKey:String(r["Fatura kodu"]||"").trim()||null};
       if (type==="bos") e.days = numOr(r["Gün"],0);
+      if (type==="sayim" && numOr(r["Eski adet"])!=null) e.was = numOr(r["Eski adet"]);
       if ((type==="gelen"||type==="iade"||type==="fire"||type==="ariza"||type==="sayim") && !(e.qty>=0)) { eSkip++; continue; }
       if (seen.has(sig(e))){ eDup++; continue; }
       evs.push(e); have.add(id); seen.add(sig(e));
@@ -2434,15 +2444,29 @@ async function readXlsx(file){
     for (const c of Object.values(S.customers||{})) byC[norm(c.name)] = c.id;
     for (const r of MU){ const name = String(r["Ad"]||"").trim(); if (!name) continue;
       const id = String(r["Kod"]||"").trim() || byC[norm(name)] || newId(); const old = S.customers[id]; if (!old) cNew++;
-      custs.push({...(old||{createdAt:nowIso()}), id, name, phone:String(r["Telefon"]||"").trim(), limit:numOr(r["Borç sınırı TL"]), note:String(r["Not"]||"").trim()}); byC[norm(name)] = id; }
+      custs.push({...(old||{createdAt:(Date.parse(String(r["Eklenme"]||"")) ? String(r["Eklenme"]).trim() : nowIso())}), id, name, phone:String(r["Telefon"]||"").trim(), limit:numOr(r["Borç sınırı TL"]), note:String(r["Not"]||"").trim()}); byC[norm(name)] = id; }
     const lsig = e => [e.type, e.customerId, localStamp(e.date), Number(e.amount)].join("|");
     const lseen = new Set(S.events.filter(isLedger).map(lsig)); let lNew = 0;
     for (const r of VE){ if (!String(r["Tarih"]||"").trim() && !String(r["Müşteri"]||"").trim()) continue; const type = norm(r["İşlem"]).startsWith("öd") ? "odeme" : norm(r["İşlem"]).startsWith("ver") || norm(r["İşlem"]).startsWith("bor") ? "borc" : null;
       const date = parseStamp(r["Tarih"]), cid = String(r["Müşteri kodu"]||"").trim() || byC[norm(r["Müşteri"])], amount = numOr(r["Tutar TL"]);
       if (!type || !date || !cid || !(amount>0)){ eSkip++; continue; }
-      const id = String(r["Kod"]||"").trim() || newId(); const e = {id, type, productId:"-", customerId:cid, amount, note:String(r["Not"]||"").trim()||null, date};
+      const id = String(r["Kod"]||"").trim() || newId(); const e = {id, type, productId:"-", customerId:cid, amount, note:String(r["Not"]||"").trim()||null, date, ...(String(r["Satış kodu"]||"").trim() ? {saleId:String(r["Satış kodu"]).trim()} : {})};
       if (have.has(id) || lseen.has(lsig(e))){ eDup++; continue; }
       evs.push(e); have.add(id); lseen.add(lsig(e)); lNew++; }
+    const rawOf = r => { try{ const o = JSON.parse(String(r["Ham (geri yükleme için, değiştirme)"]||"")); return o && typeof o==="object" ? o : null; }catch(_){ return null; } };
+    const haveSale = new Set(S.sales.map(x=>x.id)), haveCash = new Set(S.cash.map(x=>x.id)), sales = [], cashes = []; let sSkip = 0;
+    for (const r of SL){ const o = rawOf(r); if (!o || !o.id || !Array.isArray(o.it) || !(Number(o.tot) || o.tot===0) || !Date.parse(o.d) || !PAY[o.pay]){ if (String(r["Kod"]||"").trim() || o) sSkip++; continue; } if (haveSale.has(o.id)) continue; sales.push(o); haveSale.add(o.id); }
+    for (const r of KS){ const o = rawOf(r); if (!o || !o.id || !CASH_T[o.t] || !(Number(o.a) >= 0) || !Date.parse(o.d)){ if (String(r["Kod"]||"").trim() || o) sSkip++; continue; } if (haveCash.has(o.id)) continue; cashes.push(o); haveCash.add(o.id); }
+    let tNew = 0;
+    for (const r of TH){ if (!String(r["Tarih"]||"").trim() && !String(r["Tedarikçi"]||"").trim()) continue;
+      const kind = norm(r["İşlem"]).startsWith("öd") ? "todeme" : norm(r["İşlem"]).startsWith("alım") || norm(r["İşlem"]).startsWith("alim") ? "tborc" : null;
+      const date = parseStamp(r["Tarih"]), nm3 = String(r["Tedarikçi"]||"").trim(), amount = numOr(r["Tutar TL"]);
+      if (!kind || !date || !nm3 || !(amount>0)){ eSkip++; continue; }
+      const id = String(r["Kod"]||"").trim() || newId();
+      if (have.has(id)){ eDup++; continue; }
+      const e = {id, type:kind, productId:"-", supplierId:String(r["Tedarikçi kodu"]||"").trim() || supKey(nm3), supName:nm3, amount, note:String(r["Not"]||"").trim()||null, date,
+        ...(String(r["Kasa kodu"]||"").trim() ? {cashId:String(r["Kasa kodu"]).trim()} : {}), ...(String(r["Fatura kodu"]||"").trim() ? {invKey:String(r["Fatura kodu"]).trim()} : {})};
+      evs.push(e); have.add(id); tNew++; }
     let settings = null;
     if (A.length){
       const w = dayW().slice(), sp = []; let mr = S.settings?.monthlyRate ?? null, oc = S.settings?.orderCost ?? null, shop = S.settings?.shopName ?? null;
@@ -2455,7 +2479,7 @@ async function readXlsx(file){
         else if (k.startsWith("Dükkân adı")) shop = v.trim() || null; }
       settings = {...S.settings, dayW:w, special:sp, monthlyRate:mr, orderCost:oc, shopName:shop};
     }
-    S.imp = {file:file.name, prods, evs, sups, settings, pNew, pUpd, eSkip, eDup, custs, cNew, lNew};
+    S.imp = {file:file.name, prods, evs, sups, settings, pNew, pUpd, eSkip, eDup, custs, cNew, lNew, sales, cashes, sSkip, tNew};
   }catch(e){ S.imp = {err: e?.message || "Dosya okunamadı. Bu uygulamadan alınmış bir Excel dosyası olduğundan emin ol."}; }
   render();
 }
@@ -2468,8 +2492,10 @@ async function applyImport(){
     for (const c of (I.custs||[])) await store.saveCustomer(c);
     if (I.settings) await store.saveSettings(I.settings);
     for (const e of I.evs) await store.addEvent(e);
+    for (const x of (I.sales||[])) await store.saveSale(x);
+    for (const x of (I.cashes||[])) await store.saveCash(x);
   } finally { S.quiet = false; }
-  S.imp = null; S.msg = {kind:"ok", text:`Excel'den alındı: ${I.prods.length} ürün, ${I.evs.length - (I.lNew||0)} yeni hareket${I.custs?.length?`, ${I.custs.length} müşteri, ${I.lNew||0} veresiye kaydı`:""}.`}; render();
+  S.imp = null; S.msg = {kind:"ok", text:`Excel'den alındı: ${I.prods.length} ürün, ${I.evs.length - (I.lNew||0) - (I.tNew||0)} yeni hareket${I.custs?.length?`, ${I.custs.length} müşteri, ${I.lNew||0} veresiye kaydı`:""}${I.tNew?`, ${I.tNew} tedarikçi hesabı kaydı`:""}${I.sales?.length?`, ${I.sales.length} satış`:""}${I.cashes?.length?`, ${I.cashes.length} kasa kaydı`:""}.`}; render();
 }
 function importCard(){
   const I = S.imp; if (!I) return "";
@@ -2478,11 +2504,14 @@ function importCard(){
   return `<section class="card stack guide"><h2>Excel'den Alınacaklar</h2>
     <p class="small"><b>${esc(I.file)}</b></p>
     <div class="mrow"><span>Ürünler</span><span class="num"><b>${I.pNew}</b> yeni · ${I.pUpd} güncellenecek</span></div>
-    <div class="mrow"><span>Hareketler (fatura, fire, sayım…)</span><span class="num"><b>${I.evs.length-(I.lNew||0)}</b> yeni${I.eDup?` · ${I.eDup} zaten var`:""}</span></div>
+    <div class="mrow"><span>Hareketler (fatura, fire, sayım…)</span><span class="num"><b>${I.evs.length-(I.lNew||0)-(I.tNew||0)}</b> yeni${I.eDup?` · ${I.eDup} zaten var`:""}</span></div>
     ${I.custs?.length?`<div class="mrow"><span>Veresiye müşterileri</span><span class="num"><b>${I.cNew}</b> yeni · ${I.custs.length-I.cNew} güncellenecek</span></div><div class="mrow"><span>Veresiye kayıtları</span><span class="num"><b>${I.lNew}</b> yeni</span></div>`:""}
+    ${I.tNew?`<div class="mrow"><span>Tedarikçi hesabı kayıtları</span><span class="num"><b>${I.tNew}</b> yeni</span></div>`:""}
+    ${I.sales?.length?`<div class="mrow"><span>Satışlar</span><span class="num"><b>${I.sales.length}</b> yeni</span></div>`:""}
+    ${I.cashes?.length?`<div class="mrow"><span>Kasa kayıtları</span><span class="num"><b>${I.cashes.length}</b> yeni</span></div>`:""}
     ${I.sups.length?`<div class="mrow"><span>Tedarikçi araç günleri</span><span class="num">${I.sups.length}</span></div>`:""}
     ${I.settings?`<div class="mrow"><span>Ayarlar (yoğun günler, özel günler)</span><span>güncellenecek</span></div>`:""}
-    ${I.eSkip?`<p class="small fireNote">${I.eSkip} satır okunamadı (tarih, ürün ya da hareket türü eksik). Bunlar atlanacak.</p>`:""}
+    ${(I.eSkip||0)+(I.sSkip||0)?`<p class="small fireNote">${(I.eSkip||0)+(I.sSkip||0)} satır okunamadı (tarih, ürün ya da hareket türü eksik). Bunlar atlanacak.</p>`:""}
     <p class="small muted">Zaten var olan hareketler tekrar eklenmez; aynı dosyayı iki kez yüklemek kayıtları ikiye katlamaz.</p>
     <div class="row"><button class="primary" data-act="applyImp">İçeri Al</button><button data-act="cancelImp">Vazgeç</button></div></section>`;
 }
