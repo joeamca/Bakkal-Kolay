@@ -516,7 +516,7 @@ header.top h1{background:linear-gradient(90deg,var(--ink),color-mix(in srgb,var(
 .pstep button:disabled{opacity:.35}
 .pstep button:active{transform:scale(.92)}
 .pstep b{min-width:44px;text-align:center;font-size:22px;font-family:var(--display);font-weight:700;transition:color .2s}
-.pstep b.pend{color:var(--accent)}
+.pstep b.pend{color:var(--accent)}.num.pend::after{content:"…";font-size:.7em;margin-left:1px}
 .srhead{flex-wrap:nowrap;gap:10px}
 .sname{display:flex;flex-wrap:wrap;align-items:center;gap:6px;min-width:0}
 .pdup{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;border-radius:14px;background:color-mix(in srgb,var(--c2) 12%,var(--card));border:1px solid color-mix(in srgb,var(--c2) 35%,var(--line));color:var(--ink);font-size:16px;line-height:1.4}
@@ -5739,7 +5739,7 @@ function pStepper(p, cls){
   return `<span class="pstep ${cls||""}"><button type="button" data-act="pStep" data-id="${p.id}" data-d="-1" aria-label="${esc(p.name)} bir azalt" ${v===0?"disabled":""}>${ic("minus",22)}</button><b class="num" data-pq="${p.id}">${pQtyTxt(v)}</b><button type="button" data-act="pStep" data-id="${p.id}" data-d="1" aria-label="${esc(p.name)} bir artır">${ic("plus",22)}</button></span>`;
 }
 function pStep(id, d){
-  if (d < 0 && isStaff()) return;
+  if (d < 0 && isStaff() && !can("azalt")){ S.msg = {kind:"bad", text:"Stoğu azaltmayı sadece dükkân sahibi yapar. Rafta daha az varsa ona haber ver."}; render(true); return; }
   const p = S.products.find(x=>x.id===id); if (!p) return;
   const base = S.pPend[id] ?? pCur(p) ?? 0, v = Math.max(0, r2(base + d));
   S.pPend[id] = v;
@@ -5749,9 +5749,12 @@ function pStep(id, d){
 pStep.t = {};
 async function pCommit(id){
   const v = S.pPend[id]; if (v==null) return; const p = S.products.find(x=>x.id===id);
-  if (p && v !== pCur(p)) await addCount(p, v);
+  const before = p ? pCur(p) : null;
+  if (p && v !== before) await addCount(p, v);
   delete S.pPend[id];
   document.querySelectorAll(`[data-pq="${id}"]`).forEach(el=>el.classList.remove("pend"));
+  // − / + ayrı bir Kaydet düğmesi istemez: 1 sn sonra kendiliğinden kaydedilir; kullanıcı kaydedildiğini görsün, yanlışsa geri alsın
+  if (p && v !== before) offerUndo(`Kaydedildi: ${p.name} ${pQtyTxt(before)} → ${pQtyTxt(v)} ${unitOf(p)}`, async ()=>{ const q = S.products.find(x=>x.id===id); if (q && before!=null) await addCount(q, before); render(true); });
 }
 window.addEventListener("pagehide", ()=>{ for (const id of Object.keys(S.pPend)) pCommit(id); });
 // Aynı isimde ürün varsa: yeni ürün açmak yerine onun üstüne ekle
@@ -5986,7 +5989,7 @@ function kStok(){
     <button class="big" data-act="supMal" data-back="k-stok">${ic("truck",22)} Mal Geldi</button></div>
   <input id="k-q" class="ksearch" type="search" placeholder="Ürün ara" value="${esc(q)}" autocomplete="off">
   <div class="fchips">${[["all","Hepsi"],["az","Azalan"],["bitti","Biten"]].map(([k,l])=>`<button class="tog ${f===k?"on":""}" data-act="kStokF" data-f="${k}">${l} <span class="num">${n[k]}</span></button>`).join("")}</div>
-  <p class="khelp">${ic("help",18)}<span>Yanlışsa <b>−</b> / <b>+</b> ile düzelt.</span></p>
+  <p class="khelp">${ic("help",18)}<span>Yanlışsa <b>−</b> / <b>+</b> ile düzelt; 1 saniye sonra kendiliğinden kaydedilir.</span></p>
   <section class="card" id="k-list">${kStokList(rows)}</section>
   <p class="small muted kval">Raftaki malın değeri: ${kTL(val)}</p>`;
 }
