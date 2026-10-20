@@ -26,6 +26,9 @@ i = s.index('  ${S.mode==="cloud" ? "" : `<section class="card stack"><h2>Dükk�
 j = s.index('  </section>`}\n', i) + len('  </section>`}\n')
 s = s[:i] + s[j:]
 rep('  if (S.mode!=="cloud") return `<section class="card stack"><h2>${ic("bell",20)} Bildirimler</h2><p class="small muted">Bildirimler için hesabınla giriş yapman gerekiyor.</p></section>`;', '  return "";')
+# "Diğer İşler"deki Bildirimler kutusu hesap ister → çıkar; Ayarlar'ın altyazısı da şifre demesin
+rep('    ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}\n', '')
+rep('"Ayarlar", "Şifre, yedek")', '"Ayarlar", "Yedek, görünüm")')
 # Aynı adreste (joeamca.github.io) çalışan Kolay/Defteri ile tarayıcı belleği karışmasın: bütün anahtarlar bdo- ile başlar
 s = s.replace('"bd-', '"bdo-')
 # 3) Başlık/adlandırma

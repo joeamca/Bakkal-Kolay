@@ -2784,7 +2784,7 @@ document.addEventListener("click", async ev=>{
       await store.addEvent({id:eid, type, productId:"-", customerId:c.id, amount:Math.round(amt*100)/100, note:note||null, date:nowIso()});
       const nb = type==="borc" ? s0.bal+amt : s0.bal-amt;
       if (type==="borc" && c.limit>0 && nb>c.limit) nSend("veresiye", "Borç sınırı aşıldı", `${c.name}: borç ${TLx(nb)} (sınır ${TLx(c.limit)}).`, "ver-"+c.id);
-      S.msg = type==="borc" && c.limit>0 && nb>c.limit ? {kind:"bad", text:`${c.name} borç sınırını aştı: ${TLx(nb)} (sınır ${TLx(c.limit)}).`} : {kind:"ok", text:`${type==="borc"?"Veresiye yazıldı":"Ödeme alındı"}: ${TLx(amt)}. Kalan borç ${TLx(nb)}.`};
+      S.msg = type==="borc" && c.limit>0 && nb>c.limit ? {kind:"bad", text:`${c.name} borç sınırını aştı: ${TLx(nb)} (sınır ${TLx(c.limit)}).`} : {kind:"ok", text:`${type==="borc"?"Veresiye yazıldı":"Ödeme alındı"}: ${TLx(amt)}. ${nb < -0.005 ? `Fazla ödeme ${TLx(-nb)}.` : `Kalan borç ${TLx(nb)}.`}`};
       S.vMode=null; offerUndo(type==="borc"?"Veresiye yazıldı.":"Ödeme alındı.", ()=>store.deleteEvent(eid)); render(); }
     else if (a==="vDelEntry"){ if (S.confirmV!==id){ S.confirmV=id; render(); return; } S.confirmV=null; const old={...S.events.find(x=>x.id===id)}; await store.deleteEvent(id); offerUndo("Kayıt silindi.", ()=>store.addEvent(old)); render(); }
     else if (a==="vDelCust"){ if (S.confirmDelC!==id){ S.confirmDelC=id; render(); return; } const c={...S.customers[id]}; const evs=S.events.filter(e=>isLedger(e)&&e.customerId===id).map(e=>({...e}));
@@ -5869,7 +5869,7 @@ function kPos(){
 function kKasa(){
   const k = kasaDay(today0()), f = S.kasaForm;
   let h = noticeHtml() + `<section class="kcash"><span class="muted">Kasada Olması Gereken</span><b class="num">${kTL(k.beklenen)}</b>
-    <small>${k.acilisSet ? `Açılış ${kTL(k.acilis)} · ` : ""}Nakit satış ${kTL(k.nakit)}${k.giris?` · Giriş ${kTL(k.giris)}`:""}${k.cikis?` · Çıkış ${kTL(k.cikis)}`:""}</small></section>`;
+    <small>${k.acilisSet ? `Açılış ${kTL(k.acilis)} · ` : ""}Nakit satış ${kTL(k.nakit)}${k.tahsilat?` · Veresiye tahsilatı ${kTL(k.tahsilat)}`:""}${k.giris?` · Giriş ${kTL(k.giris)}`:""}${k.cikis?` · Çıkış ${kTL(k.cikis)}`:""}</small></section>`;
   if (!f){
     h += `<div class="kgrid k3">
       <button class="ktile c1" data-act="kKasa" data-f="giris"><span class="bi c1">${ic("plus",28)}</span><b>Para Koy</b><span>Kasaya giriş</span></button>
@@ -5938,6 +5938,7 @@ function kKar(){
     <div class="kline"><span>${ic("receipt",20)} Giderler</span><b class="num ${gider>0.005?"neg":""}">${kNeg(gider)}</b></div>${bar(gider, "var(--c3)")}
     ${gid.length ? `<div class="ksub">${gid.map(r=>`<div class="row between small"><span>${esc(r.r)} · ${r.adet} kez</span><span class="num">${kTL(r.a)}</span></div>`).join("")}</div>` : ""}
     <div class="knet ${net<0?"bad":"good"}"><span>${net<0?"Zarar":"Cebinde Kalan"}</span><b class="num">${kTL(Math.abs(net))}</b></div>
+    ${T.veresiye>0.005 ? `<p class="small muted">Bu dönemde ${kTL(T.veresiye)} veresiye satış var; bu para borçlular ödedikçe kasaya girer.</p>` : ""}
   </section>
   <section class="card stack small">
     ${mal ? `<div class="row between"><span>Toptancıya / ekmekçiye ödenen</span><b class="num">${kTL(mal)}</b></div><p class="muted">Bu para mal alımı; satılınca maliyet olarak düşülüyor, gider sayılmadı.</p>` : ""}
@@ -5956,8 +5957,7 @@ function kDaha(){
     ${t("kGo", 'data-tab="tedarik"', "c2", ic("truck",28), "Tedarikçiler", (()=>{ const v = supList().reduce((a,x)=>a+Math.max(0,supStats(x.id).bal),0); return v>0.005 ? `Borcum: ${kTL(v)}` : "Borç, mal geldi, ödeme"; })())}
     ${t("kGo", 'data-tab="hareket"', "c4", ic("list",28), "Stok Hareketleri", "Kim ne yaptı")}
     ${t("kGo", 'data-tab="duyuru"', "c6", ic("mega",28), "Duyuru", "Mahalleye haber ver")}
-    ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}
-    ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Şifre, yedek")}
+    ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Yedek, görünüm")}
   </div>`;
 }
 function kUrun(){
@@ -6015,6 +6015,7 @@ async function kSave(next){
   if ((!isStaff() || can("fiyat")) && !(sale >= 0.01)){ S.kErr = "Satış fiyatını yaz."; render(true); document.getElementById("ku-sale")?.focus(); return; }
   if (cnt < 0){ S.kErr = "Rafta kaç tane var: eksi sayı olamaz."; render(true); document.getElementById("ku-cnt")?.focus(); return; }
   if ((sale >= 100000 || buy >= 100000) && S.kBigOk!==name+sale+"/"+buy){ S.kBigOk = name+sale+"/"+buy; S.kErr = `Fiyat çok yüksek görünüyor: ${kTL(Math.max(sale, buy||0))}. Fazla sıfır yazılmış olabilir. Doğruysa tekrar Kaydet'e bas.`; render(true); return; }
+  if (buy > 0 && sale > 0 && buy > sale && S.kLossOk!==name+sale+"/"+buy){ S.kLossOk = name+sale+"/"+buy; S.kErr = `Alış fiyatı (${kTL(buy)}) satış fiyatından (${kTL(sale)}) yüksek; her satışta zarar edersin. Doğruysa tekrar Kaydet'e bas.`; render(true); return; }
   const old = S.kEdit!=="__new" ? S.products.find(x=>x.id===S.kEdit) : null;
   const twin = S.products.find(x=>x.id!==old?.id && norm(x.name)===norm(name));
   if (twin && S.kDupOk!==norm(name)){ S.kDupOk = norm(name); const bx = !old && document.getElementById("pdup-box");
