@@ -3721,7 +3721,7 @@ function accountCards(){
       : ""}
     ${S.confirmOut ? `<p class="notice bad">${wait} kayıt henüz internete gönderilmedi. Şimdi çıkarsan bu kayıtlar kaybolur. Önce internete bağlanıp bekle.</p>
         <div class="row"><button data-act="cancelOut">Vazgeç</button><button class="danger" data-act="logoutForce">Yine de Çık</button></div>`
-      : `<div class="row">${cirakOn() ? "" : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout">Çıkış Yap</button>`}</div>`}
+      : `<div class="row">${cirakOn() ? `<button class="primary" data-act="cirakExit">Sahip Girişi (PIN)</button>` : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout">Çıkış Yap</button>`}</div>`}
     ${ctx.is_admin && !S.admin ? `<button class="primary" data-act="toAdmin">${ic("grid",18)} Yönetici ekranına dön</button>` : ""}
   </section>`;
   h += pinCard();
