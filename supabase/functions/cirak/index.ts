@@ -1,5 +1,5 @@
 // Çırak modu: sahip telefonu çırağa bırakırken aynı telefonda çırağın KENDİ oturumuna geçer (gir);
-// sahibe dönüş yalnızca sahibin PIN'i sunucuda doğrulanınca yapılır (don). Sahibin gizli bilgisi telefonda kalmaz.
+// sahibe dönüş (çırak hesabından) yalnızca sahibin PIN'i sunucuda doğrulanınca yapılır (don; 5 yanlış = 15 dk bekleme). Sahibin gizli bilgisi telefonda kalmaz.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const SUPA_URL = Deno.env.get("SUPABASE_URL")!;
@@ -74,18 +74,25 @@ async function handle(req: Request): Promise<Response> {
     return j({ cirak: !!row });
   }
 
-  if (act === "don") {
-    if (!sid) return j({ error: "Geçersiz oturum." }, 400);
-    const { data: row } = await db.from("cirak_oturum").select("*").eq("sid", sid).eq("staff_id", uid).maybeSingle();
-    if (!row) return j({ error: "Bu oturum çırak modunda değil." }, 403);
+  if (act === "don") {   // çırak hesabından sahibe dönüş: dükkânın sahibinin PIN'i (ayrı, daha sıkı deneme sayacıyla) doğrulanır
+    const shop = String(b.shop_id || "");
+    if (!UUID.test(shop)) return j({ error: "Dükkân seçili değil." }, 400);
+    const { data: me } = await db.from("members").select("role").eq("shop_id", shop).eq("user_id", uid).maybeSingle();
+    if (me?.role !== "staff") return j({ error: "Bu işlem çırak hesabı içindir." }, 403);
     const pin = String(b.pin || "");
     if (!/^\d{4}$/.test(pin)) return j({ ok: false, reason: "wrong" });
-    const { data: chk, error } = await db.rpc("cirak_pin_check", { p_uid: row.owner_id, p_pin: pin });
-    if (error) { console.log("pin_check hata", error.message); return j({ error: "Sunucu hazır değil." }, 500); }
-    if (!chk?.ok) return j(chk || { ok: false, reason: "wrong" });
-    const th = await linkFor(row.owner_id);
+    const { data: owners } = await db.from("members").select("user_id").eq("shop_id", shop).eq("role", "owner");
+    let last: Record<string, unknown> = { ok: false, reason: "none" }, ownerId = "";
+    for (const o of owners || []) {
+      const { data: chk, error } = await db.rpc("cirak_pin_check", { p_uid: o.user_id, p_pin: pin });
+      if (error) { console.log("pin_check hata", error.message); return j({ error: "Sunucu hazır değil." }, 500); }
+      if (chk?.ok) { ownerId = o.user_id; break; }
+      if (chk) last = chk;
+    }
+    if (!ownerId) return j(last);
+    const th = await linkFor(ownerId);
     if (!th) return j({ error: "Sahip hesabına geçilemedi (" + linkErr.slice(0, 120) + ")." }, 500);
-    await db.from("cirak_oturum").delete().eq("nonce", row.nonce);
+    await db.from("cirak_oturum").delete().eq("staff_id", uid);
     try { await db.auth.admin.signOut(token, "local"); } catch (_) { /* oturum zaten kapanmış olabilir */ }
     return j({ ok: true, token_hash: th });
   }

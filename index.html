@@ -3453,7 +3453,7 @@ function viewLock(){
     <div class="pinpad">${keys.map(k => k==="" ? `<span></span>` : `<button class="pk" data-act="pinKey" data-k="${k}" ${cool||S.pinBusy?"disabled":""} aria-label="${k==="del"?"Sil":k}">${k==="del" ? "⌫" : k}</button>`).join("")}</div>
     ${S.pinForgot ? `<p class="notice bad">${C.queue.length} kayıt henüz internete gönderilmedi. Şimdi çıkarsan kaybolur. Önce internete bağlanıp bekle.</p>
         <div class="row"><button data-act="pinForgotCancel">Vazgeç</button><button class="danger" data-act="pinForgotForce">Yine de Çık</button></div>`
-      : S.pinExitCirak ? `<button data-act="cirakStay">Vazgeç, çırak modunda kal</button>` : `<button class="link" data-act="pinForgot">PIN'imi Unuttum (Şifreyle Gir, Yeni PIN Seç)</button>`}
+      : S.pinExitCirak ? `<button data-act="cirakStay">Vazgeç</button>` : `<button class="link" data-act="pinForgot">PIN'imi Unuttum (Şifreyle Gir, Yeni PIN Seç)</button>`}
   </div>`;
 }
 function pinCard(){
@@ -3530,7 +3530,7 @@ async function pinAct(a, t){
       S.msg = {kind:"bad", text: (e && e.message) || "Geçilemedi."}; render(true);
     }
     return true; }
-  if (a==="cirakExit"){ if (!cirakOn()) return true; S.pinExitCirak = true; S.locked = true; S.pinBuf = ""; S.pinErr = null; S.pinForgot = false; render(); return true; }
+  if (a==="cirakExit"){ if (!isStaff()) return true; S.pinExitCirak = true; S.locked = true; S.pinBuf = ""; S.pinErr = null; S.pinForgot = false; render(); return true; }
   if (a==="cirakStay"){ S.pinExitCirak = false; S.locked = false; S.pinBuf = ""; S.pinErr = null; render(); return true; }
   if (a==="pinForgot"){ if (C.queue.length){ S.pinForgot = true; render(); return true; } setRenew(true); C.loginErr = "Kullanıcı adın ve şifrenle gir; sonra yeni PIN seçeceksin."; await doLogout(true); return true; }
   if (a==="pinForgotCancel"){ S.pinForgot = false; render(); return true; }
@@ -3544,7 +3544,7 @@ async function pinAct(a, t){
     if (S.pinBuf.length < 4) return true;
     const pin = S.pinBuf; S.pinBuf = ""; S.pinBusy = true; render();
     try{
-      const {data, error} = await SB.functions.invoke("cirak", {body:{action:"don", pin}});
+      const {data, error} = await SB.functions.invoke("cirak", {body:{action:"don", pin, shop_id:C.shop.id}});
       if (error || !data){ const m = await fnMsg(error, data, ""); if (m){ S.pinBusy = false; S.pinErr = m; render(); return true; } throw error || new Error("yanıt yok"); }
       if (data.ok && data.token_hash){
         C.leaving = true; const r = await SB.auth.verifyOtp({token_hash:data.token_hash, type:"magiclink"}); if (r.error) throw r.error;
@@ -3721,7 +3721,7 @@ function accountCards(){
       : ""}
     ${S.confirmOut ? `<p class="notice bad">${wait} kayıt henüz internete gönderilmedi. Şimdi çıkarsan bu kayıtlar kaybolur. Önce internete bağlanıp bekle.</p>
         <div class="row"><button data-act="cancelOut">Vazgeç</button><button class="danger" data-act="logoutForce">Yine de Çık</button></div>`
-      : `<div class="row">${cirakOn() ? `<button class="primary" data-act="cirakExit">Sahip Girişi (PIN)</button>` : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout">Çıkış Yap</button>`}</div>`}
+      : `<div class="row">${isStaff() ? `<button class="primary" data-act="cirakExit">Sahip Girişi (PIN)</button>${cirakOn() ? "" : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}<button data-act="logout">Çıkış Yap</button>`}` : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout">Çıkış Yap</button>`}</div>`}
     ${ctx.is_admin && !S.admin ? `<button class="primary" data-act="toAdmin">${ic("grid",18)} Yönetici ekranına dön</button>` : ""}
   </section>`;
   h += pinCard();
