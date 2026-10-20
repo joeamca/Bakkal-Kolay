@@ -3247,6 +3247,7 @@ document.addEventListener("input", ev=>{ if (ev.target.id==="gsearch"){ S.gq = e
 /* ---------- Çırağın hareketleri ustaya bildirim olarak gider ---------- */
 function staffWho(){ return (C.user && whoName(C.user.id)) || C.ctx?.username || "Çalışan"; }
 function staffNote(kind, id, data, deleted){
+  return;   // KAN-37: çırağın her kaydı artık sunucudan (veritabanı tetikleyicisi) anında sahibe bildiriliyor; telefondaki toplu özet çift bildirim olmasın diye kapalı
   try{
     let s = null; const d = data || {};
     const pn = pid => (S.products.find(x=>x.id===pid)||{}).name || "ürün";
