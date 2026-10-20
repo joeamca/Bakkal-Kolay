@@ -117,6 +117,10 @@ async function geminiRaw(body: Record<string, unknown>): Promise<any> {
       } catch (_) { console.log("gemini zaman asimi", m); last = 0; break; }
       if (r.ok) return await r.json();
       last = r.status;
+      // düşünme seviyesi bu modelde desteklenmiyorsa: aynı modeli düşünme ayarı olmadan bir kez daha dene
+      // deno-lint-ignore no-explicit-any
+      const gc = (body as any).generationConfig;
+      if (r.status === 400 && gc?.thinkingConfig) { console.log("thinkingConfig desteklenmedi", m); body = { ...body, generationConfig: { ...gc, thinkingConfig: undefined } }; t--; continue; }
       console.log("gemini hata", m, r.status, (await r.text()).replace(/\s+/g, " ").slice(0, 300));
       if (r.status === 500 || r.status === 503) { await new Promise((res) => setTimeout(res, 700)); continue; }
       break;
@@ -163,7 +167,7 @@ Deno.serve(async (req) => {
   try {
     if (mode === "ask") {
       const d = await geminiRaw({ systemInstruction: { parts: [{ text: SYS_ASK }] }, contents, tools: TOOLS,
-        generationConfig: { maxOutputTokens: 900, temperature: 0.2 } });
+        generationConfig: { maxOutputTokens: 900, temperature: 0.2, thinkingConfig: { thinkingLevel: "low" } } });   // düşük düşünme: cevap çok daha hızlı
       const parts = d?.candidates?.[0]?.content?.parts;
       if (!Array.isArray(parts) || !parts.length) throw new Error("bos");
       const calls = parts.filter((p: Record<string, unknown>) => p.functionCall).map((p: { functionCall: { name: string; args: unknown } }) => ({ name: String(p.functionCall.name), args: p.functionCall.args || {} }));

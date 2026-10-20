@@ -88,6 +88,8 @@ Dükkân **Gün Kapanışı**'na basınca "Günün raporu hazır" bildirimi geli
 - **Net kâr** = brüt kâr − giderler (kira, fatura, personel, çay-yemek…)
 - Toptancıya ve ekmekçiye ödenen para gider sayılmaz: o mal parasıdır, mal satılınca maliyet olarak düşülür.
 - Bankaya yatırılan ve kendine aldığın para da gider değildir; ayrıca gösterilir.
+- Alış fiyatı girilmemiş ürünlerin satışı kâra katılamaz; Kâr ekranında ayrı satırda gösterilir, böylece rakamlar birbirini tutar.
+- Ana Sayfa'daki "Bugün Brüt Kâr" giderleri düşmez; Kâr ekranındaki "Net Kâr" düşer.
 
 
 ## İnternetsiz
@@ -128,6 +130,16 @@ Uygulama bir kez internetle açıldıktan sonra telefona kaydedilir; internet yo
 GitHub Pages: Settings > Pages > Branch `main`, klasör `/ (root)`. Supabase > Authentication > URL Configuration listesine uygulamanın adresi eklenmeli (şifre sıfırlama e-postası için).
 
 ## Değişiklikler
+
+### 20 Ekim 2026 (canlı test raporu düzeltmeleri)
+- **Eksik para:** Alınan para tutardan azsa nakit satış kapanmaz; müşteri seçilirse "Kalan X TL veresiyesine yazılsın" ile peşin + veresiye kaydedilir.
+- **Stok:** Rafta kalan her zaman "son sayım + gelen − fire − satılan"; satış olmadan tahminle azalmaz.
+- **Telefonda ödeme çubuğu:** Sepette ürün varken tutar ve Nakit/Kart/Veresiye ekranın altında sabit durur.
+- **Kasa:** Kasa hareketi silinebilir ve kaydedince "Geri Al" çıkar; gün kapandıktan sonra "olması gereken" sayılan paradan devam eder.
+- **Rapor:** Ortalama sepet = net satış ÷ fiş; rapor açılınca seçili dönem hemen yüklenir.
+- **Asistan:** Kalın yazı ve listeler düzgün görünür; beklerken geçen saniye yazar; daha az "düşünen" ayarla daha hızlı cevap.
+- **Küçük düzeltmeler:** tane ürüne küsurat yazılamaz; telefon alanı rakam ister; düzeltilen alanın hata yazısı kalkar; "bugünden beri bekliyor"; Çıkış Yap onay ister; "Kime ödedin?" sadece toptancı/ekmekçide çıkar.
+- **Güvenlik:** Çıraktan sahibe dönüş PIN'inde her kilitte bekleme uzar (15 dk → 1 sa → 6 sa → 24 sa) ve sahibe bildirim gider. Sunucu kuralı: çırak eksi "mal geldi" yazamaz, sayımda stoğu azaltma kontrolü sunucuda hesaplanan raf sayısına göre yapılır (telefondan gelen "önceki sayı"ya güvenilmez), çırak tedarikçi kaydını ve dükkân ayarlarını değiştiremez. Excel kütüphanesi SheetJS 0.20.3'e geçti; sayfaya içerik güvenlik politikası (CSP) eklendi. Kurallar: `supabase/guvenlik_sikilastirma.sql`.
 
 ### 19 Ekim 2026
 - **Ayrı uygulama:** Kolay kendi deposuna ve adresine taşındı; tam sürümdeki dosyalara bağımlılığı kalmadı.

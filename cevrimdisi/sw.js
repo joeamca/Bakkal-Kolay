@@ -1,12 +1,13 @@
 // Bakkal Kolay Çevrimdışı servis çalışanı: uygulama ilk açılışta (internetle) telefona indirilir; sonra tamamen internetsiz çalışır.
 // Önce telefondaki kopya açılır; internet varsa arkada yenisi indirilir ve bir sonraki açılışta kullanılır.
-const CACHE = "cevrimdisi-v3";
-const XLSX = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";   // Excel yedeği için; kurulumda bir kez indirilir
+const CACHE = "cevrimdisi-v4";
+const XLSX = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";   // Excel yedeği için (SheetJS 0.20.3); kurulumda bir kez indirilir
+const XLSX_OLD = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";   // yedek: sadece Excel'e yazmak için
 const CORE = ["./", "manifest.webmanifest", "kamera.js", "duyuru.js", "icons/kolay-192.png", "icons/kolay-512.png", "icons/kolay-180.png", "icons/kolay-mask-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(async c => {
     await Promise.all(CORE.map(u => c.add(new Request(u, { cache: "reload" })).catch(() => {})));
-    await c.add(new Request(XLSX, { mode: "cors" })).catch(() => {});
+    await c.add(new Request(XLSX, { mode: "cors" })).catch(() => c.add(new Request(XLSX_OLD, { mode: "cors" })).catch(() => {}));
   }).then(() => self.skipWaiting()));
 });
 self.addEventListener("activate", e => e.waitUntil(
@@ -14,8 +15,8 @@ self.addEventListener("activate", e => e.waitUntil(
 self.addEventListener("fetch", e => {
   const r = e.request, u = new URL(r.url);
   if (r.method !== "GET") return;
-  if (r.url === XLSX) {   // Excel kütüphanesi: önce telefondaki kopya, yoksa internetten indirip sakla
-    e.respondWith(caches.open(CACHE).then(async c => (await c.match(XLSX)) || fetch(r).then(res => { if (res.ok) c.put(XLSX, res.clone()); return res; })));
+  if (r.url === XLSX || r.url === XLSX_OLD) {   // Excel kütüphanesi: önce telefondaki kopya, yoksa internetten indirip sakla
+    e.respondWith(caches.open(CACHE).then(async c => (await c.match(r.url)) || fetch(r).then(res => { if (res.ok) c.put(r.url, res.clone()); return res; })));
     return;
   }
   if (u.origin !== location.origin || !u.pathname.startsWith(new URL(self.registration.scope).pathname)) return;

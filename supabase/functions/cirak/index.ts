@@ -1,5 +1,5 @@
 // Çırak modu: sahip telefonu çırağa bırakırken aynı telefonda çırağın KENDİ oturumuna geçer (gir);
-// sahibe dönüş (çırak hesabından) yalnızca sahibin PIN'i sunucuda doğrulanınca yapılır (don; 5 yanlış = 15 dk bekleme). Sahibin gizli bilgisi telefonda kalmaz.
+// sahibe dönüş (çırak hesabından) yalnızca sahibin PIN'i sunucuda doğrulanınca yapılır (don; 5 yanlışta kilit, her kilitte bekleme uzar, sahibe bildirim). Sahibin gizli bilgisi telefonda kalmaz.
 import { createClient } from "npm:@supabase/supabase-js@2.45.4";
 
 const SUPA_URL = Deno.env.get("SUPABASE_URL")!;
@@ -89,7 +89,17 @@ async function handle(req: Request): Promise<Response> {
       if (chk?.ok) { ownerId = o.user_id; break; }
       if (chk) last = chk;
     }
-    if (!ownerId) return j(last);
+    if (!ownerId) {
+      // 5 yanlışta kilit: dükkân sahibine bildirim (her kilitte bekleme uzar: 15 dk → 1 sa → 6 sa → 24 sa)
+      if (last.notify) {
+        const w = Number(last.wait || 0), sure = w >= 3600 ? `${Math.round(w / 3600)} saat` : `${Math.round(w / 60)} dakika`;
+        try {
+          await fetch(`${SUPA_URL}/functions/v1/bildir`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "" },
+            body: JSON.stringify({ type: "calisan", shop_id: shop, title: "Sahip PIN'i 5 kez yanlış girildi", body: `Çırak hesabından sahibe dönüş denendi; PIN ${sure} kilitlendi. Sen değilsen PIN'ini değiştir.`, tag: "pin-kilit" }) });
+        } catch (e) { console.log("bildirim gönderilemedi", String(e).slice(0, 120)); }
+      }
+      return j(last);
+    }
     const th = await linkFor(ownerId);
     if (!th) return j({ error: "Sahip hesabına geçilemedi (" + linkErr.slice(0, 120) + ")." }, 500);
     await db.from("cirak_oturum").delete().eq("staff_id", uid);

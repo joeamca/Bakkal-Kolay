@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.sheetjs.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' blob: mediastream:; connect-src 'self' https://mvonvaoatjhfmezlidrv.supabase.co wss://mvonvaoatjhfmezlidrv.supabase.co https://cdn.sheetjs.com https://cdnjs.cloudflare.com; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'">
 <title>Bakkal Kolay</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#0f6b55">
@@ -146,6 +147,7 @@ details.more>.stack{margin-top:8px}
 .toast{position:fixed;left:12px;right:12px;bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:6;max-width:620px;margin:0 auto;background:var(--ink);color:var(--bg);border-radius:12px;padding:12px 14px;display:flex;gap:12px;align-items:center;justify-content:space-between;font-size:15px}
 .toast button{background:transparent;border-color:var(--bg);color:var(--bg);min-height:40px;padding:6px 14px;font-weight:600}
 .toast[hidden]{display:none}
+[hidden]{display:none!important}
 .pindots{display:flex;justify-content:center;gap:14px;margin:4px 0 8px}
 .pindots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);display:block}
 .pindots i.on{background:var(--accent)}
@@ -455,7 +457,7 @@ table.mrp{border-collapse:collapse;font-size:13px;min-width:100%}
 .qchips .tog{flex:1;min-width:60px}
 .lrow{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line)} .lrow:first-of-type{border-top:0}
 .lic{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--card)} .lic.borc{background:var(--c3)} .lic.odeme{background:var(--c1)}
-.lmid{min-width:0;font-size:15px} .lamt{display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.lmid{min-width:0;font-size:15px;display:flex;flex-direction:column;gap:2px}.lmid .lnote{overflow:hidden;text-overflow:ellipsis;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere}.lmid .ldate{white-space:nowrap;overflow:hidden;text-overflow:ellipsis} .lamt{display:flex;flex-direction:column;align-items:flex-end;gap:2px;white-space:nowrap;text-align:right}
 .pos{color:var(--accent)}
 .sel{user-select:text} .msgbox{background:var(--bg);border-radius:10px;padding:10px}
 .rcrow{display:grid;grid-template-columns:1fr 92px auto;gap:8px;align-items:end}
@@ -594,7 +596,7 @@ e-rows:auto auto auto;column-gap:12px;align-items:center;text-align:left;padding
 .dybar{margin:12px 0 4px}.dybar .tr{height:14px;border-radius:8px;background:var(--accent-soft);overflow:hidden}.dybar .fl{height:100%;width:0;border-radius:8px;background:var(--accent);transition:width .9s ease}.dybar p{margin:6px 0 0;font-size:16px}
 .dyold{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px;margin:0 0 8px;min-height:60px}.dyold .dyoe{font-size:28px}.dyold b{display:block}.dyold small{color:var(--muted)}
 .vbox{background:var(--accent-soft);border-radius:12px;padding:10px;margin:8px 0}.vtext{font:inherit;font-size:16px;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-width:0;width:100%;resize:none;min-height:56px;max-height:160px;line-height:1.35;overflow-y:auto}.vbox .row{align-items:flex-end}.vmic{min-width:48px;font-size:22px}.vmic.rec{background:#c62828;color:#fff;animation:vpulse 1s infinite}@keyframes vpulse{50%{opacity:.6}}
-.askm{padding:10px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.4}.askm.u{background:var(--accent-soft);margin-left:28px}.askm.a{border:1px solid var(--accent-soft);margin-right:28px}.askchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.askchips button{min-height:44px}
+.askm{padding:10px 12px;border-radius:12px;margin:8px 0;white-space:pre-wrap;line-height:1.4}.askm.md{white-space:normal}.askm.md ul,.askm.md ol{margin:4px 0;padding-left:20px}.askm.md li{margin:2px 0}.askm.u{background:var(--accent-soft);margin-left:28px}.askm.a{border:1px solid var(--accent-soft);margin-right:28px}.askchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}.askchips button{min-height:44px}
 .dybig{width:100%;min-height:68px;font-size:22px;display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:10px}
 .dycopy{width:100%;min-height:48px;margin-bottom:8px}
 .dyseg{display:grid;grid-template-columns:1fr 1fr;gap:10px}.dyseg button{min-height:54px;font-size:18px;font-weight:800}.dyseg button.on{background:var(--c1);color:#fff}
@@ -813,9 +815,21 @@ html.kolay nav.tabs button[data-tab="sor"]{--tc:var(--c3)}
 .cname b{white-space:normal!important;overflow:visible!important;text-overflow:clip!important;overflow-wrap:anywhere;display:block!important;-webkit-line-clamp:unset!important}
 .cmid b,.cday i,.ksum b,.ktoday b{text-overflow:clip!important;overflow-x:auto!important;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
 .cmid b::-webkit-scrollbar,.cday i::-webkit-scrollbar,.ksum b::-webkit-scrollbar,.ktoday b::-webkit-scrollbar{display:none}
+.paybar{display:none}
+@media (max-width:899px){
+  .paybar{display:grid;grid-template-columns:1.25fr 1fr 1fr 1fr;gap:6px;align-items:stretch;position:fixed;left:0;right:0;bottom:var(--navh,58px);padding:8px 10px;background:var(--card);border-top:1px solid var(--line);box-shadow:0 -4px 14px rgba(0,0,0,.10);z-index:6}
+  .paybar .pbt{display:flex;flex-direction:column;justify-content:center;line-height:1.1;min-width:0}
+  .paybar .pbt span{font-size:12px;color:var(--muted)}
+  .paybar .pbt b{font-size:21px;white-space:nowrap}
+  .paybar.isret .pbt b{color:var(--bad)}
+  .paybar button{min-height:52px;font-size:15px;font-weight:700;padding:4px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+  .pos.hasbar{padding-bottom:86px}
+  .pos.hasbar .posR .paybtns{display:none}
+}
+body.kb .paybar{bottom:0}
 </style>
 
-<noscript><style>.wrap,nav.tabs,#toast{display:none!important}</style><div style="max-width:560px;margin:24px auto;padding:20px;font:18px/1.5 system-ui,sans-serif;background:#fff;border:2px solid #0f6b55;border-radius:14px;color:#1d2421"><b style="font-size:22px">Bakkal Defteri</b><p>Bu dosya burada çalışmıyor. Aşağıdaki düğmeye bas, uygulama tarayıcıda açılsın.</p><a href="https://joeamca.github.io/Bakkal-Kolay/" style="display:block;text-align:center;background:#0f6b55;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:700;font-size:20px">Uygulamayı aç</a><p style="font-size:15px;color:#5f6b66;overflow-wrap:anywhere">Açılmazsa bu adresi Chrome ya da Safari'ye yaz:<br>https://joeamca.github.io/Bakkal-Kolay/</p></div></noscript>
+<noscript><style>.wrap,nav.tabs,#toast{display:none!important}</style><div style="max-width:560px;margin:24px auto;padding:20px;font:18px/1.5 system-ui,sans-serif;background:#fff;border:2px solid #0f6b55;border-radius:14px;color:#1d2421"><b style="font-size:22px">Bakkal Kolay</b><p>Bu dosya burada çalışmıyor. Aşağıdaki düğmeye bas, uygulama tarayıcıda açılsın.</p><a href="https://joeamca.github.io/Bakkal-Kolay/" style="display:block;text-align:center;background:#0f6b55;color:#fff;padding:16px;border-radius:12px;text-decoration:none;font-weight:700;font-size:20px">Uygulamayı aç</a><p style="font-size:15px;color:#5f6b66;overflow-wrap:anywhere">Açılmazsa bu adresi Chrome ya da Safari'ye yaz:<br>https://joeamca.github.io/Bakkal-Kolay/</p></div></noscript>
 <div class="wrap">
   <header class="top">
     <div><h3>Bakkal Kolay <span id="today" class="today"></span></h3><h1 id="pageTitle">Bugün</h1></div>
@@ -2176,7 +2190,7 @@ function viewVeresiye(){
   html += `<section class="stack" id="clist" style="gap:8px">${rows.map(({c,s})=>{
     const ag = s.bal>0.005 ? (s.ageDays>60?"bad":s.ageDays>30?"warn":"ok") : "info";
     return `<button class="ccard" data-act="vOpen" data-id="${c.id}" data-name="${esc(norm(c.name))}">${avatar(c)}
-      <span class="cmid"><b>${esc(c.name)}</b><span class="small muted">${s.bal>0.005&&s.oldest?`${Math.floor(s.ageDays)} gündür bekliyor`:`son işlem ${agoTxt(s.lastT)}`}</span>
+      <span class="cmid"><b>${esc(c.name)}</b><span class="small muted">${s.bal>0.005&&s.oldest?(Math.floor(s.ageDays)<1?"bugünden beri bekliyor":`${Math.floor(s.ageDays)} gündür bekliyor`):`son işlem ${agoTxt(s.lastT)}`}</span>
       ${c.limit>0 && s.bal>0?hbar(100*s.bal/c.limit, s.bal>c.limit?"var(--c3)":"var(--c4)"):""}</span>
       <span class="cbal ${ag}"><b class="num">${s.bal>0.005?TL(s.bal):s.bal<-0.005?"+"+TL(-s.bal):"0 TL"}</b><small>${s.bal>0.005?"borç":s.bal<-0.005?"fazla ödedi":"borcu yok"}</small></span></button>`; }).join("")}</section>
     <p class="small muted" id="cnone" hidden>Aramaya uyan müşteri yok.</p>`;
@@ -2189,7 +2203,7 @@ function custDetail(c){
       ${c.phone?`<span class="small muted sel">${esc(c.phone)}</span>`:""}${c.note?`<span class="small muted">${esc(c.note)}</span>`:""}</div>
       <button class="link" data-act="vEdit" data-id="${c.id}">Düzenle</button></div>
     <div class="balbox ${s.bal>0.005?"debt":"clear"}"><span class="small">${s.bal>0.005?"Borcu":s.bal<-0.005?"Fazla ödemesi":"Borcu yok"}</span><b class="num">${TL(Math.abs(s.bal))}</b>
-      ${s.bal>0.005&&s.oldest?`<span class="small">en eski borç ${Math.floor(s.ageDays)} gündür bekliyor</span>`:""}</div>
+      ${s.bal>0.005&&s.oldest?`<span class="small">en eski borç ${Math.floor(s.ageDays)<1?"bugün yazıldı":`${Math.floor(s.ageDays)} gündür bekliyor`}</span>`:""}</div>
     ${c.limit>0?`<div class="stack" style="gap:4px"><span class="small muted">Borç sınırı ${TL(c.limit)}${s.bal>c.limit?` · <b class="neg">sınır aşıldı</b>`:""}</span>${hbar(100*Math.max(0,s.bal)/c.limit, s.bal>c.limit?"var(--c3)":"var(--c4)")}</div>`:""}
     <div class="vbtns"><button class="vbtn borc ${S.vMode==="borc"?"on":""}" data-act="vMode" data-m="borc">${ic("plus",22)}<span>Veresiye yaz</span></button>
       <button class="vbtn odeme ${S.vMode==="odeme"?"on":""}" data-act="vMode" data-m="odeme">${ic("minus",22)}<span>Ödeme al</span></button></div>
@@ -2209,7 +2223,7 @@ function custDetail(c){
   let run = 0; const hist = s.ev.map(e=>{ run += e.type==="borc" ? Number(e.amount) : -Number(e.amount); return {e, run}; }).reverse();
   html += `<section class="card"><h3 style="margin-bottom:6px">Hareketler</h3>${hist.length ? hist.map(({e,run})=>`<div class="lrow">
       <span class="lic ${e.type}">${ic(e.type==="borc"?"plus":"minus",16)}</span>
-      <span class="lmid"><b>${e.type==="borc"?"Veresiye":"Ödeme"}</b>${e.note?` · ${esc(e.note)}`:""}${whoTag("event", e.id)}<br><span class="small muted">${new Date(e.date).toLocaleDateString("tr-TR",{day:"numeric",month:"long",weekday:"short"})} ${new Date(e.date).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}</span></span>
+      <span class="lmid"><span class="lnote"><b>${e.type==="borc"?"Veresiye":"Ödeme"}</b>${e.note?` · ${esc(e.note)}`:""}</span><span class="small muted ldate">${new Date(e.date).toLocaleDateString("tr-TR",{day:"numeric",month:"short",weekday:"short"})} ${new Date(e.date).toLocaleTimeString("tr-TR",{hour:"2-digit",minute:"2-digit"})}${whoTag("event", e.id)}</span></span>
       <span class="lamt"><b class="num ${e.type==="borc"?"neg":"pos"}">${e.type==="borc"?"+":"−"}${TLx(Number(e.amount))}</b><span class="small muted num">kalan ${TLx(run)}</span>
       <button class="link" data-act="vDelEntry" data-id="${e.id}">${S.confirmV===e.id?"Emin misin?":"Sil"}</button></span></div>`).join("") : `<p class="small muted">Henüz kayıt yok. Yukarıdan "Veresiye yaz" ile başla.</p>`}</section>`;
   html += `<div class="row"><button class="danger" data-act="vDelCust" data-id="${c.id}">${S.confirmDelC===c.id?(s.bal>0.005?`Borcu var (${TL(s.bal)})! Yine de sil`:"Emin misin? Sil"):"Müşteriyi sil"}</button></div>`;
@@ -2241,7 +2255,7 @@ function phoneCard(){
   let hid = false; try{ hid = localStorage.getItem("bd-ana-ekran")==="1"; }catch(_){}
   if (standalone || hid) return "";
   return `<div class="note stack" style="margin-bottom:12px"><b>Telefonda simge olarak dursun</b>
-    <span class="small">${ios ? "Safari'de alttaki paylaş düğmesine (kare ve yukarı ok) bas, <b>Ana Ekrana Ekle</b>'yi seç." : "Chrome'da sağ üstteki <b>⋮</b> üç noktaya bas, <b>Ana ekrana ekle</b>'yi (ya da <b>Uygulamayı yükle</b>'yi) seç."} Bir dahakine telefonunda <b>Bakkal Defteri</b> simgesine basman yeter.</span>
+    <span class="small">${ios ? "Safari'de alttaki paylaş düğmesine (kare ve yukarı ok) bas, <b>Ana Ekrana Ekle</b>'yi seç." : "Chrome'da sağ üstteki <b>⋮</b> üç noktaya bas, <b>Ana ekrana ekle</b>'yi (ya da <b>Uygulamayı yükle</b>'yi) seç."} Bir dahakine telefonunda <b>Bakkal Kolay</b> simgesine basman yeter.</span>
     <div class="row"><button class="link" data-act="hidePhone">Yaptım, Gizle</button></div></div>`;
 }
 function viewHome(){
@@ -2314,7 +2328,16 @@ function viewMenu(){
 
 /* ---------- Excel'e aktar ---------- */
 function loadScript(src){ return new Promise((res,rej)=>{ if (window.XLSX) return res(); const s=document.createElement("script"); s.src=src; s.onload=res; s.onerror=()=>{ s.remove(); rej(new Error("yok")); }; document.head.appendChild(s); }); }
-async function loadXLSX(){ if (!window.XLSX) await loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"); return window.XLSX; }
+// Excel kütüphanesi: SheetJS 0.20.3 (resmi dağıtım; 0.18.5'teki bilinen açıklar kapalı). Dosya OKUMA sadece yeni sürümle yapılır;
+// yeni sürüm indirilemezse sadece Excel'e YAZMA (indirme) için eski sürüme düşülür.
+const XLSX_NEW = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js", XLSX_OLD = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+const xlsxOld = () => /^0\.18\./.test(String(window.XLSX?.version||""));
+async function loadXLSX(read){
+  if (window.XLSX && !(read && xlsxOld())) return window.XLSX;
+  try{ if (window.XLSX) window.XLSX = undefined; await loadScript(XLSX_NEW); }
+  catch(e){ if (read) throw new Error("Excel okuyucu indirilemedi. İnterneti kontrol edip tekrar dene."); await loadScript(XLSX_OLD); }
+  return window.XLSX;
+}
 const TYP = {gelen:"Gelen (fatura)", iade:"İade", fire:"Fire", ariza:"Arıza firesi", bos:"Rafta yoktu", sayim:"Raf sayımı", fireyok:"Fire yok"};
 const TYP_R = Object.fromEntries(Object.entries(TYP).map(([k,v])=>[norm(v),k]));
 const yesno = v => v ? "Evet" : "";
@@ -2369,7 +2392,7 @@ async function exportXlsx(){
     add(prod, "Ürünler", {"Ürün":""}); add(mov, "Hareketler", {"Tarih":""}); add(supLed, "Tedarikçi hesabı", {"Tarih":""}); add(sup, "Tedarikçiler", {"Tedarikçi":""}); add(cust, "Müşteriler", {"Ad":""}); add(led, "Veresiye", {"Tarih":""}); add(sal, "Satışlar", {"Tarih":""}); add(kas, "Kasa", {"Tarih":""}); add(set, "Ayarlar", {"Ayar":""});
     const buf = X.write(wb, {type:"array", bookType:"xlsx"});
     try{ localStorage.setItem("bd-son-yedek", String(Date.now())); }catch(_){}
-    const how = await saveFile(`bakkal-defteri-${ymd(Date.now())}.xlsx`, buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const how = await saveFile(`bakkal-kolay-${ymd(Date.now())}.xlsx`, buf, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     S.msg = how==="saved" ? {kind:"ok",text:"Excel dosyası kaydedildi."} : how==="shared" ? {kind:"ok",text:"Dosya paylaşıldı. Dosyalar'a ya da WhatsApp'a kaydedebilirsin."}
       : how==="tried" ? {kind:"ok",text:"İndirme başlatıldı. İndirilenler klasörüne bak."} : null;
     render();
@@ -2392,7 +2415,7 @@ async function saveFile(name, buf, mime){
 async function readXlsx(file){
   S.imp = {busy:true}; render();
   try{
-    const X = await loadXLSX();
+    const X = await loadXLSX(true);
     const wb = X.read(await file.arrayBuffer(), {type:"array", cellDates:true});
     const sheet = n => { const k = wb.SheetNames.find(x=>norm(x)===norm(n)); return k ? X.utils.sheet_to_json(wb.Sheets[k], {defval:""}) : []; };
     const P = sheet("Ürünler"), H = sheet("Hareketler"), T = sheet("Tedarikçiler"), A = sheet("Ayarlar"), MU = sheet("Müşteriler"), VE = sheet("Veresiye"), SL = sheet("Satışlar"), KS = sheet("Kasa"), TH = sheet("Tedarikçi hesabı");
@@ -2876,11 +2899,20 @@ document.addEventListener("change", ev=>{
   else if (ev.target.id && ev.target.id.startsWith("ln-p-")){ syncInv(); render(); }
   else if (ev.target.id==="inv-force"){ syncInv(); render(); }
 });
+// Kullanıcı hatalı alanı düzeltmeye başlayınca o formdaki eski hata kutusu kalkar
+document.addEventListener("input", ev=>{ const el = ev.target; if (!(el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement || el instanceof HTMLSelectElement)) return;
+  if (el.id==="pos-given" || el.id==="pos-scan") return;
+  const box = el.closest("form") || el.closest(".card"); if (!box) return;
+  const bad = box.querySelectorAll(".notice.bad:not(#pos-short)"); if (!bad.length) return;
+  bad.forEach(n=>n.remove()); S.kErr = null; S.kasaErr = null; S.supErr = null; S.kBigOk = null; S.kLossOk = null; }, true);
+const phoneOk = x => { x = String(x||"").trim(); return !x || (/^\+?[\d\s().-]{7,20}$/.test(x) && x.replace(/\D/g,"").length >= 7); };
+const PHONE_ERR = "Telefon numarasını rakamla yaz (örn. 0532 123 45 67).";
 function syncRc(){ (S.rcRows||[]).forEach((r,i)=>{ const a=document.getElementById("rc-p-"+i), b=document.getElementById("rc-q-"+i); if (a) r.id=a.value; if (b) r.qty=b.value; }); }
 document.addEventListener("submit", async ev=>{
   if (ev.target.id==="vform"){ ev.preventDefault();
     const g = id => (document.getElementById(id)?.value ?? "").trim();
-    const name = g("vc-name"); if (!name){ const e=document.getElementById("vc-err"); if (e) e.hidden=false; return; }
+    const name = g("vc-name"); if (!name){ const e=document.getElementById("vc-err"); if (e){ e.textContent = "Müşterinin adını yaz."; e.hidden=false; } return; }
+    if (!phoneOk(g("vc-phone"))){ const e=document.getElementById("vc-err"); if (e){ e.textContent = PHONE_ERR; e.hidden=false; } document.getElementById("vc-phone")?.focus(); return; }
     const old = S.vEditCust!=="__new" ? S.customers[S.vEditCust] : null;
     const c = {...(old||{id:newId(), createdAt:nowIso()}), name, phone:g("vc-phone"), limit: g("vc-limit")===""?null:Number(g("vc-limit")), note:g("vc-note")};
     try{ await store.saveCustomer(c); S.vEditCust=null; S.vCust=c.id; S.msg={kind:"ok",text:`${c.name} kaydedildi.`}; render(); }catch(e){ S.msg={kind:"bad",text:"Kaydedilemedi. Tekrar dene."}; render(); }
@@ -3377,6 +3409,7 @@ async function doSignup(){
   if (g("sg-web")) { S.signup = "done"; S.sgUser = f.email; render(); return; }            // bot tuzağı
   if (!f.shop) return err("Dükkânının adını yaz.");
   if (!f.name) return err("Adını soyadını yaz.");
+  if (!phoneOk(f.phone)) return err(PHONE_ERR);
   if (!EMAIL_RE.test(f.email)) return err("E-posta adresini doğru yaz (örn. mert@gmail.com). Girişte ve şifreni unutunca bu kullanılacak.");
   if (f.phone.replace(/\D/g,"").length < 10) return err("Telefon numaranı yaz; onaylanınca sana buradan haber verilecek.");
   if (f.pass.length < 8) return err("Şifre en az 8 karakter olmalı.");
@@ -3469,7 +3502,7 @@ function viewSetPin(){
     ${C.loginErr ? `<p class="notice bad">${esc(C.loginErr)}</p>` : ""}
     ${pinFields(pinMins())}
     <span class="small muted" style="margin-top:-4px">1111, 1234 gibi kolay PIN'ler kabul edilmez.</span>
-    <button class="primary" data-act="pinGateSave">PIN'i Kaydet ve Devam Et</button><button data-act="logout">Çıkış Yap</button></div>`;
+    <button class="primary" data-act="pinGateSave">PIN'i Kaydet ve Devam Et</button><button data-act="logout" class="${S.logoutAsk?"danger":""}">${S.logoutAsk?"Emin misin? Çıkış Yap":"Çıkış Yap"}</button></div>`;
 }
 function viewLock(){
   const cfg = S.pinExitCirak ? {} : (pinCfg() || {}), wait = Math.max(cfg.coolUntil||0, S.pinCoolUntil||0) - Date.now(), cool = wait > 0, n = (S.pinBuf||"").length;
@@ -3477,7 +3510,7 @@ function viewLock(){
   return `<div class="card stack login lockcard">
     <div class="stack" style="gap:4px;text-align:center"><span class="bi c1" style="margin:0 auto">${ic("user",26)}</span><h2>${S.pinExitCirak ? "Sahip girişi" : "Kilitli"}</h2><span class="small muted kbdhint">PIN'i klavyeden de yazabilirsin.</span>
       <p class="small muted">${esc(C.ctx?.full_name || C.ctx?.username || "")}${C.shop ? " · " + esc(C.shop.name) : ""}</p></div>
-    ${cool ? `<p class="notice bad">Çok fazla yanlış deneme. ${Math.ceil(wait/60000)} dakika sonra tekrar dene.</p>` : S.pinErr ? `<p class="notice bad">${esc(S.pinErr)}</p>` : `<p class="small" style="text-align:center">${S.pinBusy ? '<span class="spin"></span> Kontrol ediliyor' : "PIN'ini gir"}</p>`}
+    ${cool ? `<p class="notice bad">Çok fazla yanlış deneme. ${(m=>m>=60?Math.ceil(m/60)+" saat":m+" dakika")(Math.ceil(wait/60000))} sonra tekrar dene.${S.pinExitCirak ? " Dükkân sahibine haber verildi." : ""}</p>` : S.pinErr ? `<p class="notice bad">${esc(S.pinErr)}</p>` : `<p class="small" style="text-align:center">${S.pinBusy ? '<span class="spin"></span> Kontrol ediliyor' : "PIN'ini gir"}</p>`}
     <div class="pindots" aria-label="${n} rakam girildi">${[0,1,2,3].map(i=>`<i class="${i<n?"on":""}"></i>`).join("")}</div>
     <div class="pinpad">${keys.map(k => k==="" ? `<span></span>` : `<button class="pk" data-act="pinKey" data-k="${k}" ${cool||S.pinBusy?"disabled":""} aria-label="${k==="del"?"Sil":k}">${k==="del" ? "⌫" : k}</button>`).join("")}</div>
     ${S.pinForgot ? `<p class="notice bad">${C.queue.length} kayıt henüz internete gönderilmedi. Şimdi çıkarsan kaybolur. Önce internete bağlanıp bekle.</p>
@@ -3650,11 +3683,11 @@ function signupCards(){
   </section>`;
 }
 const waNum = ph => { let d = String(ph||"").replace(/\D/g,""); if (d.startsWith("0")) d = "90" + d.slice(1); else if (d.length===10 && d.startsWith("5")) d = "90" + d; return d; };
-const shareText = (shop, u, p, email) => `Bakkal Defteri hesabın ${p ? "hazır" : "onaylandı"}.\nDükkân: ${shop}\nAdres: ${SITE()}\n${email ? `E-posta: ${email}` : `Kullanıcı adı: ${u}`}\nŞifre: ${p || "başvururken yazdığın şifre"}${p ? "\n(Bu şifre tek kullanımlıktır ve 5 dakika geçerlidir; hemen girip kendi şifreni belirle.)" : ""}${email ? "\nŞifreni unutursan giriş ekranındaki \"Şifremi unuttum\"a bas; e-postana yenileme bağlantısı gelir." : ""}\n\nAdresi telefonunda Chrome ya da Safari ile aç, giriş yap. Sonra üç noktadan "Ana ekrana ekle" de; bir dahakine simgesine basman yeter.`;
+const shareText = (shop, u, p, email) => `Bakkal Kolay hesabın ${p ? "hazır" : "onaylandı"}.\nDükkân: ${shop}\nAdres: ${SITE()}\n${email ? `E-posta: ${email}` : `Kullanıcı adı: ${u}`}\nŞifre: ${p || "başvururken yazdığın şifre"}${p ? "\n(Bu şifre tek kullanımlıktır ve 5 dakika geçerlidir; hemen girip kendi şifreni belirle.)" : ""}${email ? "\nŞifreni unutursan giriş ekranındaki \"Şifremi unuttum\"a bas; e-postana yenileme bağlantısı gelir." : ""}\n\nAdresi telefonunda Chrome ya da Safari ile aç, giriş yap. Sonra üç noktadan "Ana ekrana ekle" de; bir dahakine simgesine basman yeter.`;
 
 function viewLogin(){
   return `<div class="card stack login">
-    <div class="stack" style="gap:4px;text-align:center"><span class="bi c1" style="margin:0 auto">${ic("book",26)}</span><h2>Bakkal Defteri</h2><p class="small muted">Dükkânının hesabına giriş yap</p></div>
+    <div class="stack" style="gap:4px;text-align:center"><span class="bi c1" style="margin:0 auto">${ic("book",26)}</span><h2>Bakkal Kolay</h2><p class="small muted">Dükkânının hesabına giriş yap</p></div>
     ${C.loginErr ? `<p class="notice bad">${esc(C.loginErr)}</p>` : ""}
     <form id="lgform" class="stack" autocomplete="on">
       <label>E-posta ya da kullanıcı adı<input id="lg-user" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="email" placeholder="örn. mert@gmail.com"></label>
@@ -3711,7 +3744,7 @@ setInterval(()=>{ if (S.mode!=="newpass" || !C.tempDeadline) return; const el = 
   if (Date.now() >= C.tempDeadline){ C.tempDeadline = null; C.loginErr = "Tek kullanımlık şifrenin 5 dakikalık süresi doldu. Yöneticiden ya da dükkân sahibinden yeni şifre iste."; doLogout(true); } }, 1000);
 function viewGate(){
   if (S.mode==="setpin") return viewSetPin();
-  const out = `<button data-act="logout">Çıkış Yap</button>`;
+  const out = `<button data-act="logout" class="${S.logoutAsk?"danger":""}">${S.logoutAsk?"Emin misin? Çıkış Yap":"Çıkış Yap"}</button>`;
   if (S.mode==="recover") return `<div class="card stack login"><div class="stack" style="gap:4px;text-align:center"><span class="bi c1" style="margin:0 auto">${ic("user",26)}</span><h2>Yeni Şifreni Belirle</h2>
       <p class="small muted">${esc(C.ctx?.email || C.ctx?.username || "")}</p></div>
     ${C.loginErr ? `<p class="notice bad">${esc(C.loginErr)}</p>` : ""}
@@ -3750,7 +3783,7 @@ function accountCards(){
       : ""}
     ${S.confirmOut ? `<p class="notice bad">${wait} kayıt henüz internete gönderilmedi. Şimdi çıkarsan bu kayıtlar kaybolur. Önce internete bağlanıp bekle.</p>
         <div class="row"><button data-act="cancelOut">Vazgeç</button><button class="danger" data-act="logoutForce">Yine de Çık</button></div>`
-      : `<div class="row">${isStaff() ? `<button class="primary" data-act="cirakExit">Sahip Girişi (PIN)</button>${cirakOn() ? "" : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}<button data-act="logout">Çıkış Yap</button>`}` : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout">Çıkış Yap</button>`}</div>`}
+      : `<div class="row">${isStaff() ? `<button class="primary" data-act="cirakExit">Sahip Girişi (PIN)</button>${cirakOn() ? "" : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}<button data-act="logout" class="${S.logoutAsk?"danger":""}">${S.logoutAsk?"Emin misin? Çıkış Yap":"Çıkış Yap"}</button>`}` : `${S.pwOpen?"":`<button data-act="pwOpen">Şifremi Değiştir</button>`}${(ctx.shops||[]).length>1?`<button data-act="chooseShop">Dükkân Değiştir</button>`:""}<button data-act="logout" class="${S.logoutAsk?"danger":""}">${S.logoutAsk?"Emin misin? Çıkış Yap":"Çıkış Yap"}</button>`}</div>`}
     ${ctx.is_admin && !S.admin ? `<button class="primary" data-act="toAdmin">${ic("grid",18)} Yönetici ekranına dön</button>` : ""}
   </section>`;
   h += pinCard();
@@ -3789,7 +3822,7 @@ function createdCard(){
   return `<div class="notice ok stack"><b>${x.p ? `Hesap hazır. ${esc(x.name||x.u)} için giriş bilgileri; kopyalayıp gönder:` : `${esc(x.name||x.u)} onaylandı. Haber vermek için gönder:`}</b>
     <pre class="small" style="white-space:pre-wrap;margin:0;font-family:var(--mono)">${esc(shareText(x.shop, x.u, x.p, x.email))}</pre>
     ${x.p ? `<span class="small"><b>Şifre 5 dakika geçerli.</b> Kişi hemen girmeli; süre dolarsa "Şifre yenile"ye bas.</span>` : ""}
-    <div class="row"><button class="primary" data-act="copyCreated">${ic("copy",18)} Kopyala</button>${x.email ? `<a class="btn" href="mailto:${esc(x.email)}?subject=${encodeURIComponent("Bakkal Defteri hesabın")}&body=${encodeURIComponent(shareText(x.shop, x.u, x.p, x.email))}">E-postayla gönder</a>` : ""}
+    <div class="row"><button class="primary" data-act="copyCreated">${ic("copy",18)} Kopyala</button>${x.email ? `<a class="btn" href="mailto:${esc(x.email)}?subject=${encodeURIComponent("Bakkal Kolay hesabın")}&body=${encodeURIComponent(shareText(x.shop, x.u, x.p, x.email))}">E-postayla gönder</a>` : ""}
       ${x.phone || !x.email ? `<a class="btn" href="https://wa.me/${x.phone ? waNum(x.phone) : ""}?text=${encodeURIComponent(shareText(x.shop, x.u, x.p, x.email))}" target="_blank" rel="noopener">${x.phone ? "WhatsApp'tan gönder" : "WhatsApp'ta aç"}</a>` : ""}<button class="link" data-act="closeCreated">Kapat</button></div></div>`;
 }
 function viewAdmin(){
@@ -3908,7 +3941,7 @@ async function cloudAct(a, t, id){
     if (!pick){ S.mode = "pickshop"; render(); return true; }
     await openShop(pick); window.scrollTo(0,0); return true; }
   if (a==="toAdmin"){ if (C.queue.length) await flush(); setAdminView(null); S.tab = "y-ozet"; S.msg = null; enterAdmin(); window.scrollTo(0,0); return true; }
-  if (a==="logout"){ await doLogout(false); return true; }
+  if (a==="logout"){ if (!S.logoutAsk){ S.logoutAsk = true; render(true); setTimeout(()=>{ if (S.logoutAsk){ S.logoutAsk = false; render(true); } }, 6000); return true; } S.logoutAsk = false; await doLogout(false); return true; }
   if (a==="logoutForce"){ await doLogout(true); return true; }
   if (a==="cancelOut"){ S.confirmOut = false; render(); return true; }
   if (a==="pickShop"){ const sh = (C.ctx?.shops||[]).find(s=>s.id===id); if (sh){ if (C.queue.some(q=>q.shop===C.shop?.id)) await flush(); S.tab = "ana"; await openShop(sh); } return true; }
@@ -4064,11 +4097,12 @@ function posUse(pid, fromT, depth){
 }
 // stats() içinden: satışa geçildiyse rafta kalan kesin, satış hızı gerçek
 function posFor(p, ev, anchors, now){
-  const ps = S.settings?.posStart; if (!ps) return null;
-  const pst = Date.parse(ps); if (!isFinite(pst)) return null;
+  // Kolay'da her satış kasadan geçer: rafta kalan her zaman "son sayım + gelen − fire − satılan" (tahminle azaltılmaz).
+  const kol = !!window.KOLAY, ps = S.settings?.posStart, pst = ps ? Date.parse(ps) : NaN;
+  if (!kol && !isFinite(pst)) return null;
   const LA = anchors.length ? anchors[anchors.length-1] : null;
   let exact = null;
-  if (LA && LA.t >= pst - 60000){
+  if (LA && (kol || LA.t >= pst - 60000)){
     let s0 = LA.q;
     for (const e of ev){ const t = Date.parse(e.date);
       if (e.type==="gelen" && t >= LA.t) s0 += e.qty;
@@ -4077,7 +4111,7 @@ function posFor(p, ev, anchors, now){
   }
   let rate = null;
   const from = Math.max(pst, now - POS_RATE_DAYS*DAY), spanD = (now - from)/DAY;
-  if (spanD >= 7){
+  if (isFinite(pst) && spanD >= 7){
     let off = 0;
     for (const e of ev){ if (e.type!=="bos") continue; const t = Date.parse(e.date), b0 = t - (e.days||0)*DAY; off += Math.max(0, Math.min(t, now) - Math.max(b0, from)); }
     if (p.outSince) off += Math.max(0, now - Math.max(Date.parse(p.outSince), from));
@@ -4428,12 +4462,27 @@ function askTool(name, a){
   }catch(e){ return {hata:"Hesaplanamadı"}; }
   return {hata:"Bilinmeyen araç"};
 }
+// Asistan cevabındaki **kalın**, liste (- / * / 1.) ve satır sonlarını düzgün göster (önce kaçış, sonra biçim)
+function mdLite(t){
+  const lines = String(t||"").replace(/\r/g,"").split("\n"), out = []; let list = null;
+  const inl = x => esc(x).replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/(^|[^*])\*([^*\s][^*]*?)\*(?!\*)/g, "$1<i>$2</i>").replace(/`([^`]+)`/g, "<code>$1</code>");
+  const close = () => { if (list){ out.push(`</${list}>`); list = null; } };
+  for (const raw of lines){ const l = raw.trimEnd(); let m;
+    if ((m = l.match(/^\s*[-*•]\s+(.*)$/))){ if (list!=="ul"){ close(); out.push("<ul>"); list = "ul"; } out.push(`<li>${inl(m[1])}</li>`); continue; }
+    if ((m = l.match(/^\s*\d+[.)]\s+(.*)$/))){ if (list!=="ol"){ close(); out.push("<ol>"); list = "ol"; } out.push(`<li>${inl(m[1])}</li>`); continue; }
+    close();
+    if ((m = l.match(/^#{1,4}\s+(.*)$/))){ out.push(`<b>${inl(m[1])}</b><br>`); continue; }
+    out.push(l ? inl(l) + "<br>" : "<br>"); }
+  close();
+  return out.join("").replace(/(<br>)+$/,"");
+}
 async function askRun(q){
   const A = askState(); q = String(q||"").trim(); if (q.length < 2 || A.busy) return;
   if (S.mode!=="cloud" || !S.cloud?.shop){ A.err = "Bunun için hesabınla giriş yapman gerekir."; render(true); return; }
   A.pending = [];
   if (A.contents.length > 10) A.contents = [];          // konuşma uzadıysa temiz başla (ekrandaki yazılar kalır)
   A.busy = true; A.err = ""; A.msgs.push({r:"u", t:q}); A.contents.push({role:"user", parts:[{text:q}]}); render(true); askScroll();
+  const t0 = Date.now(), tick = setInterval(()=>{ const e = document.getElementById("ask-sec"); if (e) e.textContent = Math.round((Date.now()-t0)/1000) + " sn"; else if (!askState().busy) clearInterval(tick); }, 1000);
   try{
     let done = false;
     for (let step = 0; step < 5 && !done; step++){
@@ -4449,7 +4498,7 @@ async function askRun(q){
     }
     if (!done) throw new Error("Çok adım gerekti, soruyu daha basit sor.");
   }catch(e){ A.err = String(e.message||e); A.contents = []; }
-  A.busy = false; render(true); askScroll();
+  clearInterval(tick); A.busy = false; render(true); askScroll();
 }
 const askScroll = () => setTimeout(()=>{ try{ window.scrollTo(0, document.body.scrollHeight); document.getElementById("ask-q")?.focus(); }catch(_){} }, 30);
 const ASK_LBL = {satis_fiyati:"Satış fiyatı", alis_fiyati:"Alış fiyatı", ad:"Ad", stok_sayim:"Stok sayımı"};
@@ -4499,7 +4548,7 @@ function kSor(){
   const A = askState();
   const chips = ["Bugün ne kadar sattım?", "Bu hafta en çok ne sattım?", "Hangi ürünleri sipariş vermeliyim?", "Kimin ne kadar borcu var?", "En kârlı ürünlerim hangileri?", "Kasada ne kadar olmalı?"];
   return noticeHtml() + `<p class="muted small" style="margin:6px 0 10px">Sor, yapay zekâ defterine bakıp cevaplasın. Satış, yeni ürün, fiyat/stok düzeltmesi, veresiye ödemesi, kasa girişi-çıkışı ve ürün silme önerebilir; ama sen kutudan onaylamadan hiçbir şey değişmez.</p>
-    <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}">${esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted">Bakıyorum…</div>` : ""}</div>
+    <div class="askmsgs">${A.msgs.map(m=>`<div class="askm ${m.r}${m.r==="a"?" md":""}">${m.r==="a" ? mdLite(m.t) : esc(m.t)}</div>`).join("")}${A.busy ? `<div class="askm a muted"><span class="spin"></span> Bakıyorum… <span id="ask-sec"></span></div>` : ""}</div>
     ${askPendingHtml(A)}${A.err ? `<div class="notice bad">${esc(A.err)}</div>` : ""}<p id="ask-msg" class="small muted" style="margin:0 0 6px"></p>
     ${!A.msgs.length ? `<div class="askchips">${chips.map(c=>`<button type="button" data-act="askQ" data-q="${esc(c)}">${esc(c)}</button>`).join("")}</div>` : ""}
     <form id="askform" class="row nowrap" autocomplete="off"><input id="ask-q" maxlength="300" placeholder="Sorunu yaz ya da söyle…" aria-label="Sorun" style="flex:1" ${A.busy?"disabled":""}>${SpeechR ? `<button type="button" class="vmic" data-act="askMic" aria-label="Konuş" ${A.busy?"disabled":""}>🎤</button>` : ""}<button class="primary" type="submit" ${A.busy?"disabled":""}>Sor</button></form>
@@ -4563,6 +4612,13 @@ function kasaDay(t0){
     giris: sum(cash.filter(x=>x.t==="giris"), x=>x.a), cikis: sum(cash.filter(x=>x.t==="cikis"), x=>x.a),
     fis: sales.filter(s=>!s.r).length, iade: sum(sales.filter(s=>s.r), s=>s.tot), ciro: sum(sales, s=>s.tot), cash, kap, sales };
   r.beklenen = r2(r.acilis + r.nakit + r.tahsilat + r.giris - r.cikis);
+  if (kap){   // gün kapandıysa: kasa sayılan (ya da yarına bırakılan) paradan devam eder, sadece kapanıştan sonrakiler eklenir
+    const kt = tOf(kap), af = x => tOf(x) > kt;
+    const base = kap.birak!=null ? Number(kap.birak)||0 : Number(kap.say ?? kap.a)||0;
+    r.afterKap = {base, nakit: sum(sales.filter(s=>(s.pay||"nakit")==="nakit" && af(s)), s=>s.tot), tahsilat: sum(tahsil.filter(e=>Date.parse(e.date) > kt), e=>Number(e.amount)||0),
+      giris: sum(cash.filter(x=>x.t==="giris" && af(x)), x=>x.a), cikis: sum(cash.filter(x=>x.t==="cikis" && af(x)), x=>x.a), birak: kap.birak!=null};
+    const A = r.afterKap; r.beklenen = r2(A.base + A.nakit + A.tahsilat + A.giris - A.cikis);
+  }
   return r;
 }
 function prevLeft(t0){ const prev = S.cash.filter(x=>x.t==="kapanis" && tOf(x) < t0).sort((x,y)=>x.d.localeCompare(y.d)).pop(); return prev && prev.birak!=null ? Number(prev.birak) : null; }
@@ -4638,6 +4694,9 @@ function viewSell(){
       <div id="pos-change" class="change">${changeHtml(tot)}</div></div>`;
   }
   if (lim) R += `<p class="notice warn small">${esc(cust.name)} için veresiye sınırı ${TLx(cust.limit)}; bu satışla aşılıyor.</p>`;
+  { const g = pnum(S.posGiven), kalan = r2(tot - g);
+    if (S.posShort && n && !ret && g > 0 && kalan > 0.005) R += `<div class="notice bad stack small" id="pos-short" role="alert"><b>${TLx(g)} alındı, tutar ${TLx(tot)}: ${TLx(kalan)} eksik.</b>
+      ${cust ? `<button class="primary" data-act="posPay" data-pay="kismi">Kalan ${TLx(kalan)} ${esc(cust.name)} veresiyesine yazılsın</button>` : `<span>Alınan parayı düzelt ya da kalanı veresiye yazmak için müşteri seç.</span><button data-act="posCustOpen">Müşteri Seç</button>`}</div>`; }
   R += `<div class="paybtns">
       <button class="pay p-nakit" data-act="posPay" data-pay="nakit" ${n?"":"disabled"}>${ic("coin",22)}<span>Nakit</span><kbd>F8</kbd></button>
       <button class="pay p-kart" data-act="posPay" data-pay="kart" ${n?"":"disabled"}>${ic("receipt",22)}<span>Kart</span><kbd>F9</kbd></button>
@@ -4646,7 +4705,10 @@ function viewSell(){
       ${n ? `<button class="link ${S.posClear?"dangerLink":""}" data-act="posClear">${S.posClear?"Emin misin? Boşalt":"Sepeti Boşalt"}</button>` : ""}</div>
     <button class="kfoot" data-act="posView" data-v="kasa"><span>Kasada Olması Gereken</span><b class="num">${TLx(kd.beklenen)}</b><span class="small muted">Bugün ${kd.fis} satış · ${TLx(kd.ciro)}</span></button>
   </aside>`;
-  return `<div class="pos"><div class="posL">${L}</div>${R}</div>`;
+  // Telefonda ödeme düğmeleri ekranın altında sabit: her satışta aşağı kaydırmak gerekmesin
+  const bar = n ? `<div class="paybar ${ret?"isret":""}" role="group" aria-label="Ödeme"><div class="pbt"><span>${ret?"Geri Verilecek":"Ödenecek"}</span><b class="num">${TLx(tot)}</b></div>
+    <button class="pay p-nakit" data-act="posPay" data-pay="nakit">${ic("coin",18)}<span>Nakit</span></button><button class="pay p-kart" data-act="posPay" data-pay="kart">${ic("receipt",18)}<span>Kart</span></button><button class="pay p-ver" data-act="posPay" data-pay="veresiye">${ic("book",18)}<span>Veresiye</span></button></div>` : "";
+  return `<div class="pos ${n?"hasbar":""}"><div class="posL">${L}</div>${R}</div>${bar}`;
 }
 function changeHtml(tot){
   const g = pnum(S.posGiven);
@@ -4662,22 +4724,29 @@ async function posFinish(pay){
   const items = S.pos.items.filter(x=>Number(x.q) && isFinite(Number(x.q)));
   if (!items.length) return;
   const ret = !!S.pos.ret, sign = ret ? -1 : 1, cust = S.pos.cust || null;
+  const split = pay==="kismi"; if (split){ if (ret) return; pay = "veresiye"; }
+  if (split && !cust){ S.posPick = true; S.posShort = true; render(); return; }
   if (pay==="veresiye" && !cust){ S.posPick = true; S.posErr = "Veresiye için müşteri seç (ya da yeni müşteri ekle)."; render(); return; }
   if (items.some(x=>!(Number(x.u) > 0))){ S.posErr = (isStaff() && !can("fiyat")) ? "Fiyatı olmayan ürünü dükkân sahibi satar. Ona haber ver." : "Fiyatı olmayan ürün var. Sepette fiyatını yaz."; render(); return; }
   const it = items.slice().reverse().map(x=>{ const p = x.p ? S.products.find(y=>y.id===x.p) : null, b = buyOf(p);
     return {p: x.p || "-", n: x.n, q: r3(sign*Math.abs(Number(x.q))), u: r2(x.u), ...(b!=null ? {b} : {}), ...(x.w ? {w:1} : {})}; });
   const tot = r2(it.reduce((a,x)=>a + x.q*x.u, 0)), given = pnum(S.posGiven);
+  // Alınan para tutardan azsa nakit satış kapanmaz: parayı düzelt ya da kalanı veresiyeye yaz
+  if (pay==="nakit" && !ret && given > 0 && given < tot - 0.005){ S.posShort = true; S.posErr = null; render(); setTimeout(()=>document.getElementById("pos-short")?.scrollIntoView({block:"center"}),0); return; }
+  if (split && !(given > 0 && given < tot - 0.005)){ S.posShort = false; render(); return; }
   const sale = {id: newId(), d: nowIso(), it, tot, pay, ...(cust ? {c: cust} : {}), ...(ret ? {r: true} : {}), ...(pay==="nakit" && given > 0 && !ret ? {al: r2(given)} : {})};
   try{
     await posMarkStart();
     if (pay==="veresiye"){ sale.ev = newId();
       await store.addEvent({id: sale.ev, type:"borc", productId:"-", customerId: cust, amount: tot, date: sale.d, saleId: sale.id,
         note: (ret ? "İade: " : "Satış: ") + it.map(x=>x.n + (Math.abs(x.q)!==1 ? " ×" + fmt(Math.abs(x.q),3) : "")).slice(0,4).join(", ") + (it.length>4 ? " …" : "")}); }
+    if (split){ sale.pe = newId(); await store.addEvent({id: sale.pe, type:"odeme", productId:"-", customerId: cust, amount: r2(given), date: sale.d, saleId: sale.id, note:"Satışta peşin alınan"}); }
     await store.saveSale(sale);
   }catch(e){ S.posErr = "Kaydedilemedi: " + (e?.message||e); render(); return; }
+  S.posShort = false;
   S.pos = {items:[], cust:null, ret:false}; cartSave();
   S.posLast = sale; S.posGiven = ""; S.posErr = null; S.posWarn = null; S.posPick = false; S.posClear = false; S.posUnknown = null;
-  offerUndo(`${ret?"İade":"Satış"} kaydedildi: ${TLx(tot)} ${PAY[pay].toLocaleLowerCase("tr")}.`, ()=>posCancel(sale.id, true));
+  offerUndo(split ? `Satış kaydedildi: ${TLx(given)} peşin, ${TLx(r2(tot-given))} veresiye.` : `${ret?"İade":"Satış"} kaydedildi: ${TLx(tot)} ${PAY[pay].toLocaleLowerCase("tr")}.`, ()=>posCancel(sale.id, true));
   setTimeout(()=>{ try{ nAfterSale(sale); }catch(_){} }, 300);
   render(); posFocus();
 }
@@ -4685,6 +4754,7 @@ async function posCancel(id, undo){
   const s = S.sales.find(x=>x.id===id); if (!s || s.x) return;
   await store.saveSale({...s, x: true, xAt: nowIso()});
   if (s.ev && S.events.some(e=>e.id===s.ev)) await store.deleteEvent(s.ev);
+  if (s.pe && S.events.some(e=>e.id===s.pe)) await store.deleteEvent(s.pe);
   if (undo && S.posLast?.id===id) S.posLast = null;
   S.msg = {kind:"ok", text:`${hhmm(tOf(s))} satışı iptal edildi; stok ve kasa düzeltildi.`};
   render();
@@ -4745,6 +4815,7 @@ async function kasaSave(f){
   if (x.sup){ const eid = newId(); await store.addEvent({id:eid, type:"todeme", productId:"-", supplierId:x.sup, supName:supName(x.sup), amount:x.a, note:"Kasadan ödeme", date:x.d, cashId:x.id}); }
   try{ nAfterCash(x); }catch(_){}
   S.kasaForm = null;
+  offerUndo(`${CASH_T[f]} kaydedildi.`, async ()=>{ for (const e of S.events.filter(e=>e.cashId===x.id)) await store.deleteEvent(e.id); await store.deleteCash(x.id); S.msg = {kind:"ok", text:"Kasa hareketi geri alındı."}; render(); });
   S.msg = {kind:"ok", text: f==="kapanis" ? (Math.abs(x.fark)<0.01 ? "Gün kapatıldı. Kasa tuttu." : `Gün kapatıldı. Kasa ${TLx(Math.abs(x.fark))} ${x.fark>0?"fazla":"eksik"}.`) : `${CASH_T[f]} kaydedildi: ${TLx(x.a)}${r?` (${r})`:""}.`};
   render();
 }
@@ -4877,7 +4948,7 @@ async function posAct(a, t){
   if (a==="posEditPrice"){ S.posEditK = k; render(); setTimeout(()=>{ const e = document.getElementById("pos-ep"); if (e){ e.focus(); e.select(); } },0); return true; }
   if (a==="posQ"){ const x = S.pos.items.find(y=>y.k===k); if (x){ x.q = r3(Number(x.q) + Number(t.dataset.d)); if (x.q <= 0) S.pos.items = S.pos.items.filter(y=>y!==x); cartSave(); } render(); posFocus(); return true; }
   if (a==="posDel"){ S.pos.items = S.pos.items.filter(y=>y.k!==k); cartSave(); render(); posFocus(); return true; }
-  if (a==="posClear"){ if (!S.posClear){ S.posClear = true; render(); return true; } S.pos = {items:[], cust:null, ret:false}; S.posClear = false; cartSave(); render(); posFocus(); return true; }
+  if (a==="posClear"){ if (!S.posClear){ S.posClear = true; render(); return true; } S.pos = {items:[], cust:null, ret:false}; S.posClear = false; S.posShort = false; cartSave(); render(); posFocus(); return true; }
   if (a==="posRet"){ S.pos.ret = !S.pos.ret; cartSave(); render(); posFocus(); return true; }
   if (a==="posPay"){ await posFinish(t.dataset.pay); return true; }
   if (a==="posGiven"){ S.posGiven = t.dataset.v; render(); posFocus(); return true; }
@@ -4912,12 +4983,14 @@ async function posSubmit(id, form){
     S.posBigOk = null;
     cartAdd(null, 1, r2(u), {n: (v("pp-name").trim() || "Diğer")}); S.posPrice = false; S.posUnknown = null; S.posErr = null; render(); posFocus(); return true; }
   if (id==="pcform"){ const name = v("pc-name").trim(); if (!name) return true;
+    if (!phoneOk(v("pc-phone"))){ S.posErr = PHONE_ERR; render(true); return true; }
     const c = {id:newId(), createdAt:nowIso(), name, phone:v("pc-phone").trim(), limit:null, note:""};
     await store.saveCustomer(c); S.pos.cust = c.id; S.posPick = false; S.posNewCust = false; S.posErr = null; cartSave(); render(); posFocus(); return true; }
   if (id==="kasaform"){ await kasaSave(form.dataset.f); return true; }
   if (id==="tanform"){ tanScan(v("tan-scan")); return true; }
   if (id==="tanpform"){ const p = S.products.find(x=>x.id===form.dataset.id); if (!p) return true;
     const sale = pnum(v("tp-sale")), cnt = pnum(v("tp-cnt"));
+    if (cnt > 0 && cnt % 1 && !p.byWeight && unitOf(p)!=="kg"){ S.msg = {kind:"bad", text:"Tane ile satılan üründe küsurat olmaz (2,5 tane yazılamaz)."}; render(true); return true; }
     if (sale > 0 && sale !== Number(p.salePrice)) await store.saveProduct({...p, salePrice: r2(sale), salePriceAt: nowIso()});
     if (cnt >= 0) await addCount(p, cnt);
     S.msg = {kind:"ok", text:`${p.name} kaydedildi${cnt>=0?`; rafta ${fmt(cnt,3)} ${unitOf(p)}`:""}.`}; S.tan = null;
@@ -5049,6 +5122,7 @@ function rpSum(d){
 }
 function viewReport(){
   const R = rpState(), d = S.rpData;
+  if (!d && !S.rpBusy && !S.rpErr && !S.rpAutoAsked){ S.rpAutoAsked = true; setTimeout(()=>rpLoad(), 0); }   // seçili görünen dönemin raporu boş kalmasın
   let h = `<section class="card stack rpctl"><h2>Satış Raporu</h2>
     <div class="fchips">${RP_PRE.map(([k,l])=>`<button class="tog ${R.pre===k?"on":""}" data-act="rpPre" data-k="${k}">${l}</button>`).join("")}</div>
     <div class="grid2"><label>Başlangıç<input id="rp-from" type="date" value="${esc(R.from)}"></label><label>Bitiş<input id="rp-to" type="date" value="${esc(R.to)}"></label></div>
@@ -5065,7 +5139,7 @@ function viewReport(){
       <div class="tile"><span class="tn num">${TLx(T.ciro)}</span><span>toplam satış</span></div>
       <div class="tile"><span class="tn num">${fmt(T.fis)}</span><span>satış (fiş)</span></div>
       <div class="tile good"><span class="tn num">${TLx(T.kar)}</span><span>kâr${eksik?" (alış fiyatı bilinenler)":""}</span></div>
-      <div class="tile"><span class="tn num">${T.fis ? TLx(r2((T.ciro - T.iade)/T.fis)) : "–"}</span><span>ortalama sepet</span></div>
+      <div class="tile"><span class="tn num">${T.fis ? TLx(r2(T.ciro/T.fis)) : "–"}</span><span>ortalama sepet</span></div>
       <div class="tile"><span class="tn num">${TLx(T.nakit)}</span><span>nakit</span></div>
       <div class="tile"><span class="tn num">${TLx(T.kart)}</span><span>kart</span></div>
       <div class="tile"><span class="tn num">${TLx(T.veresiye)}</span><span>veresiyeye</span></div>
@@ -5240,7 +5314,7 @@ async function nToggle(t){
 }
 async function nTest(){
   N.err = null; N.ok = null;
-  try{ const {data, error} = await SB.functions.invoke("bildir", {body:{type:"deneme", shop_id: S.cloud.shop.id, endpoint: N.endpoint, title:"Bildirimler çalışıyor", body:"Bakkal Defteri bundan sonra önemli şeyleri buraya yazacak."}});
+  try{ const {data, error} = await SB.functions.invoke("bildir", {body:{type:"deneme", shop_id: S.cloud.shop.id, endpoint: N.endpoint, title:"Bildirimler çalışıyor", body:"Bakkal Kolay bundan sonra önemli şeyleri buraya yazacak."}});
     if (error){ let m = error.message; try{ const b = await error.context?.json?.(); if (b?.error) m = b.error; }catch(_){} throw new Error(m); }
     N.ok = data?.sent ? "Deneme bildirimi gönderildi. Birkaç saniye içinde gelmeli." : "Gönderilemedi: bu cihazın kaydı bulunamadı. Bildirimleri kapatıp yeniden aç."; }
   catch(e){ let m = e?.message || String(e); try{ const j = await e.context?.json(); if (j?.error) m = j.error; }catch(_){} N.err = "Deneme gönderilemedi: " + m; }
@@ -5616,6 +5690,7 @@ async function supSubmit(form){
   S.supErr = null;
   if (form.id==="supeform"){
     const name = g("se-name"); if (!name){ S.supErr = "Adını yaz."; render(true); return; }
+    if (!phoneOk(g("se-phone"))){ S.supErr = PHONE_ERR; render(true); return; }
     const vade = pnum(g("se-vade")), oldId = S.supEdit!=="__new" ? S.supEdit : null, k = oldId || supKey(name);
     if (!oldId && S.suppliers[k]){ S.supErr = "Bu isimde tedarikçi zaten var."; render(true); return; }
     const old = S.suppliers[k] || {days:[], lead:0};
@@ -5634,6 +5709,8 @@ async function supSubmit(form){
     const lines = (S.supLines||[]).filter(l=>l.qty > 0);
     if (!S.supMalSup?.trim()){ S.supErr = "Kimden aldığını yaz."; render(true); return; }
     if (!lines.length){ S.supErr = "En az bir ürün ve miktar gir."; render(true); return; }
+    { const fr = lines.find(l=>{ const pr = S.products.find(x=>x.id===l.p); return pr && !pr.byWeight && unitOf(pr)!=="kg" && l.qty % 1; });
+      if (fr){ S.supErr = `${S.products.find(x=>x.id===fr.p).name}: tane ile satılan üründe küsurat olmaz (${fmt(fr.qty,3)} yazılmış).`; render(true); return; } }
     try{ const r = await supReceive({supName:S.supMalSup, lines, pay:S.supMalPay||"borc"});
       const back = S.supMalBack; S.supForm = null; S.supLines = []; S.supMalBack = null;
       S.msg = {kind:"ok", text:`${r.n} ürün stoğa eklendi${r.tot>0 ? `; ${supName(r.k)} için ${TLx(r.tot)} ${S.supMalPay==="borc" ? "borç yazıldı" : "peşin ödendi"}` : ""}.`};
@@ -5816,6 +5893,9 @@ GUIDE.tedarik = {t:"Tedarikçiler: kime ne borcun var", s:[
 
 /* ================= Bakkal Kolay: sade arayüz, aynı veri ve aynı hesaplar ================= */
 window.KOLAY = true;
+// alttaki menünün yüksekliği: sabit ödeme çubuğu menünün hemen üstünde dursun
+(function(){ const set = () => { const n = document.querySelector("nav.tabs"), h = n && getComputedStyle(n).display !== "none" ? n.getBoundingClientRect().height : 0; document.documentElement.style.setProperty("--navh", Math.round(h) + "px"); };
+  try{ new ResizeObserver(set).observe(document.body); }catch(_){ } window.addEventListener("resize", set); setTimeout(set, 300); })();
 const K_MAP = {ana:"k-ana", menu:"k-daha", stok:"k-stok", kar:"k-kar"};
 const K_MORE = ["hareket","duyuru","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
 const K_MAL = ["Toptancı / plasiyer ödemesi","Ekmekçi"], K_DIS = ["Bankaya yatırıldı","Kendime aldım"];
@@ -5850,7 +5930,7 @@ function kAna(){
   x += `<button class="ksell" data-act="kGo" data-tab="satis"><span class="kse">${ic("scan",34)}</span><span><b>Satış Yap</b><small>Barkodu okut, sat</small></span><span class="kgo">${ic("back",22)}</span></button>
   <div class="ktoday">
     <button data-act="kGo" data-tab="k-kar"><span>Bugün Satış</span><b class="num">${kTL(k.ciro)}</b></button>
-    <button data-act="kGo" data-tab="k-kar"><span>Bugün Kâr${bil?"":"*"}</span><b class="num pos">${kTL(kar)}</b></button>
+    <button data-act="kGo" data-tab="k-kar"><span>Bugün Brüt Kâr${bil?"":"*"}</span><b class="num pos">${kTL(kar)}</b></button>
   </div>
   <div class="kgrid k4">
     <button class="ktile c1" data-act="kKasa" data-f="giris"><span class="bi c1">${ic("plus",30)}</span><b>Para Koy</b></button>
@@ -5877,7 +5957,8 @@ function kPos(){
 function kKasa(){
   const k = kasaDay(today0()), f = S.kasaForm;
   let h = noticeHtml() + `<section class="kcash"><span class="muted">Kasada Olması Gereken</span><b class="num">${kTL(k.beklenen)}</b>
-    <small>${k.acilisSet ? `Açılış ${kTL(k.acilis)} · ` : ""}Nakit satış ${kTL(k.nakit)}${k.tahsilat?` · Veresiye tahsilatı ${kTL(k.tahsilat)}`:""}${k.giris?` · Giriş ${kTL(k.giris)}`:""}${k.cikis?` · Çıkış ${kTL(k.cikis)}`:""}</small></section>`;
+    <small>${k.afterKap ? `Gün kapandı: ${k.afterKap.birak ? "kasada bırakılan" : "sayılan"} ${kTL(k.afterKap.base)}${k.afterKap.nakit?` · sonra nakit satış ${kTL(k.afterKap.nakit)}`:""}${k.afterKap.tahsilat?` · tahsilat ${kTL(k.afterKap.tahsilat)}`:""}${k.afterKap.giris?` · giriş ${kTL(k.afterKap.giris)}`:""}${k.afterKap.cikis?` · çıkış ${kTL(k.afterKap.cikis)}`:""}`
+      : `${k.acilisSet ? `Açılış ${kTL(k.acilis)} · ` : ""}Nakit satış ${kTL(k.nakit)}${k.tahsilat?` · Veresiye tahsilatı ${kTL(k.tahsilat)}`:""}${k.giris?` · Giriş ${kTL(k.giris)}`:""}${k.cikis?` · Çıkış ${kTL(k.cikis)}`:""}`}</small></section>`;
   if (!f){
     h += `<div class="kgrid k3">
       <button class="ktile c1" data-act="kKasa" data-f="giris"><span class="bi c1">${ic("plus",28)}</span><b>Para Koy</b><span>Kasaya giriş</span></button>
@@ -5894,11 +5975,11 @@ function kKasa(){
       ${f==="cikis" && supList().length ? `<label id="k-supw" ${K_MAL.includes(S.kReason)?"":"hidden"}>Kime ödedin?<select id="kf-sup"><option value="">Seçmeden geç</option>${supList().map(x=>{ const b = supStats(x.id).bal; return `<option value="${esc(x.id)}">${esc(x.name)}${b>0.005?` · borç ${kTL(b)}`:""}</option>`; }).join("")}</select></label>` : ""}
       ${f==="kapanis" ? `<label>Yarına Kasada Bırakılan (isteğe bağlı)<input id="kf-b" inputmode="decimal" placeholder="Örn. 500"></label>` : ""}
       <details class="knote" ${S.kReason==="Diğer"?"open":""}><summary>${S.kReason==="Diğer" ? "Ne için? (yaz)" : "Not ekle"}</summary><input id="kf-n" maxlength="120" aria-label="Not" placeholder="${f==="cikis" ? "Örn. Ekmekçi Hasan" : ""}"></details>
-      ${S.kasaErr ? `<p class="notice bad">${esc(S.kasaErr)}</p>` : ""}
-      <div class="row"><button class="primary big" type="submit">Kaydet</button><button type="button" class="big" data-act="kKasa" data-f="">Vazgeç</button></div></form>`;
+      <div class="row"><button class="primary big" type="submit">Kaydet</button><button type="button" class="big" data-act="kKasa" data-f="">Vazgeç</button></div>
+      ${S.kasaErr ? `<p class="notice bad" role="alert">${esc(S.kasaErr)}</p>` : ""}</form>`;
   }
   const mv = k.cash.slice().reverse();
-  h += `<section class="card stack"><h2 class="kh">${ic("list",22)} Bugünkü Hareketler</h2>${mv.length ? mv.map(x=>`<div class="krow3"><span><b>${CASH_T[x.t]||x.t}</b>${x.r?` · ${esc(x.r)}`:""}<br><span class="small muted">${hhmm(tOf(x))}${x.n?` · ${esc(x.n)}`:""}</span></span><b class="num ${x.t==="cikis"?"neg":""}">${x.t==="cikis"?"−":""}${kTL(x.t==="kapanis" ? x.say : x.a)}</b></div>`).join("") : `<p class="muted">Bugün kasaya giren ya da çıkan para yok.</p>`}</section>`;
+  h += `<section class="card stack"><h2 class="kh">${ic("list",22)} Bugünkü Hareketler</h2>${mv.length ? mv.map(x=>`<div class="krow3"><span><b>${CASH_T[x.t]||x.t}</b>${x.r?` · ${esc(x.r)}`:""}<br><span class="small muted">${hhmm(tOf(x))}${x.n?` · ${esc(x.n)}`:""}</span></span><b class="num ${x.t==="cikis"?"neg":""}">${x.t==="cikis"?"−":""}${kTL(x.t==="kapanis" ? x.say : x.a)}</b><button class="link ${S.kasaDel===x.id?"dangerLink":""}" data-act="kasaDel" data-id="${x.id}">${S.kasaDel===x.id?"Emin misin? Sil":"Sil"}</button></div>`).join("") : `<p class="muted">Bugün kasaya giren ya da çıkan para yok.</p>`}</section>`;
   return h;
 }
 function kStok(){
@@ -5941,18 +6022,19 @@ function kKar(){
   const bar = (v, c) => `<span class="kbar2"><i style="width:${Math.min(100, 100*Math.abs(v)/max).toFixed(1)}%;background:${c}"></i></span>`;
   h += `<section class="card stack kpl">
     <div class="kline"><span>${ic("coin",20)} Satış</span><b class="num">${kTL(T.ciro)}</b></div>${bar(T.ciro, "var(--c7)")}
+    ${Math.abs(r2(T.ciro - T.ciro_bilinen)) > 0.005 ? `<div class="kline kunk"><span>${ic("alert",20)} Alış fiyatı girilmemiş ürün satışı <small class="muted">(kâra katılmadı)</small></span><b class="num neg">${kNeg(r2(T.ciro - T.ciro_bilinen))}</b></div>` : ""}
     <div class="kline"><span>${ic("box",20)} Malın Alış Fiyatı</span><b class="num ${T.maliyet>0.005?"neg":""}">${kNeg(T.maliyet)}</b></div>${bar(T.maliyet, "var(--c5)")}
-    <div class="kline strong"><span>Kâr</span><b class="num">${kTL(brut)}</b></div>
+    <div class="kline strong"><span>Brüt Kâr <small class="muted">(satış − alış)</small></span><b class="num">${kTL(brut)}</b></div>
     <div class="kline"><span>${ic("receipt",20)} Giderler</span><b class="num ${gider>0.005?"neg":""}">${kNeg(gider)}</b></div>${bar(gider, "var(--c3)")}
     ${gid.length ? `<div class="ksub">${gid.map(r=>`<div class="row between small"><span>${esc(r.r)} · ${r.adet} kez</span><span class="num">${kTL(r.a)}</span></div>`).join("")}</div>` : ""}
-    <div class="knet ${net<0?"bad":"good"}"><span>${net<0?"Zarar":"Cebinde Kalan"}</span><b class="num">${kTL(Math.abs(net))}</b></div>
+    <div class="knet ${net<0?"bad":"good"}"><span>${net<0?"Net Zarar":"Net Kâr"} <small>(giderler düşüldü)</small></span><b class="num">${kTL(Math.abs(net))}</b></div>
     ${T.veresiye>0.005 ? `<p class="small muted">Bu dönemde ${kTL(T.veresiye)} veresiye satış var; bu para borçlular ödedikçe kasaya girer.</p>` : ""}
   </section>
   <section class="card stack small">
     ${mal ? `<div class="row between"><span>Toptancıya / ekmekçiye ödenen</span><b class="num">${kTL(mal)}</b></div><p class="muted">Bu para mal alımı; satılınca maliyet olarak düşülüyor, gider sayılmadı.</p>` : ""}
     ${dis ? `<div class="row between"><span>Bankaya yatırılan / kendine aldığın</span><b class="num">${kTL(dis)}</b></div>` : ""}
     <div class="row between"><span>Nakit / Kart / Veresiye</span><span class="num">${kTL(T.nakit)} / ${kTL(T.kart)} / ${kTL(T.veresiye)}</span></div>
-    ${eksik ? `<p class="muted">${eksik} ürünün alış fiyatı girilmediği için kâra katılmadı. Stok ekranında "Düzenle"den alış fiyatını yaz.</p>` : ""}
+    ${eksik ? `<p class="muted">${eksik} ürünün alış fiyatı girilmediği için satışı kâra katılmadı (yukarıda ayrı satırda). Stok ekranında ürüne dokunup alış fiyatını yaz.</p>` : ""}
     <button class="primary" data-act="rpXlsx">${ic("sheet",18)} Excel'e İndir</button>
   </section>`;
   return h;
@@ -5987,7 +6069,7 @@ function kUrun(){
     <section class="kustep"><span class="kun">3</span><div class="kubody">
       <div class="kuprices"><label>Satış Fiyatı<span class="kutl"><input id="ku-sale" inputmode="decimal" value="${esc(num(v.salePrice))}" placeholder="25" ${lockP ? "readonly" : ""}><b>TL</b></span></label>
         <label>Alış Fiyatı<span class="kutl"><input id="ku-buy" inputmode="decimal" value="${esc(num(v.buyPrice))}" placeholder="18" ${lockP ? "readonly" : ""}><b>TL</b></span></label></div>
-      <p class="small muted kuhint">${lockP ? "Fiyatı sadece dükkân sahibi yazar." : "Bilmiyorsan boş bırak. Kuruş için virgül: 12,50. Binlik için nokta: 1.500."}</p><div id="ku-kar" class="kukar">${kKarTxt(v.salePrice, v.buyPrice)}</div></div></section>
+      <p class="small muted kuhint">${lockP ? "Fiyatı sadece dükkân sahibi yazar." : "Satış fiyatı şart. Alış fiyatını bilmiyorsan boş bırak. Kuruş için virgül: 12,50. Binlik için nokta: 1.500."}</p><div id="ku-kar" class="kukar">${kKarTxt(v.salePrice, v.buyPrice)}</div></div></section>
     <section class="kustep"><span class="kun">4</span><div class="kubody">
       <label for="ku-cnt">Rafta Kaç ${v.byWeight ? "Kilo" : "Tane"} Var?</label>
       <div class="kustepper"><button type="button" data-act="kStep" data-d="-1" aria-label="Bir azalt">${ic("minus",26)}</button><input id="ku-cnt" inputmode="decimal" placeholder="${p ? "Aynı" : "0"}"><button type="button" data-act="kStep" data-d="1" aria-label="Bir artır">${ic("plus",26)}</button></div>
@@ -6023,6 +6105,7 @@ async function kSave(next){
   if (!name){ S.kErr = "Ürün adını yaz."; render(true); document.getElementById("ku-name")?.focus(); return; }
   if ((!isStaff() || can("fiyat")) && !(sale >= 0.01)){ S.kErr = "Satış fiyatını yaz."; render(true); document.getElementById("ku-sale")?.focus(); return; }
   if (cnt < 0){ S.kErr = "Rafta kaç tane var: eksi sayı olamaz."; render(true); document.getElementById("ku-cnt")?.focus(); return; }
+  if (!w && cnt > 0 && cnt % 1 && unitOf(S.kEdit!=="__new" ? S.products.find(x=>x.id===S.kEdit) : null)!=="kg"){ S.kErr = "Tane ile satılan üründe küsurat olmaz (2,5 tane yazılamaz). Tartıyla satılıyorsa \"Tartıyla satılıyor\"u işaretle."; render(true); document.getElementById("ku-cnt")?.focus(); return; }
   if ((sale >= 100000 || buy >= 100000) && S.kBigOk!==name+sale+"/"+buy){ S.kBigOk = name+sale+"/"+buy; S.kErr = `Fiyat çok yüksek görünüyor: ${kTL(Math.max(sale, buy||0))}. Fazla sıfır yazılmış olabilir. Doğruysa tekrar Kaydet'e bas.`; render(true); return; }
   if (buy > 0 && sale > 0 && buy > sale && S.kLossOk!==name+sale+"/"+buy){ S.kLossOk = name+sale+"/"+buy; S.kErr = `Alış fiyatı (${kTL(buy)}) satış fiyatından (${kTL(sale)}) yüksek; her satışta zarar edersin. Doğruysa tekrar Kaydet'e bas.`; render(true); return; }
   const old = S.kEdit!=="__new" ? S.products.find(x=>x.id===S.kEdit) : null;
@@ -6206,6 +6289,7 @@ async function kolayAct(a, t, id){
   if (a==="kGo"){ if (t.dataset.tab==="tedarik"){ S.supOpen = null; S.supForm = null; S.supEdit = null; } S.tab = t.dataset.tab; S.msg = null; S.kEdit = null; S.vCust = null; S.editId = null; if (t.dataset.f) S.kStokF = t.dataset.f; if (S.tab==="satis") S.posView = "sat"; render(); window.scrollTo(0,0); if (S.tab==="satis") posFocus(); return true; }
   if (a==="kKasa"){ S.tab = "k-kasa"; S.kasaForm = t.dataset.f || null; S.kReason = null; S.kasaErr = null; S.kasaOver = null; S.kapOk = false; S.msg = null; render(); window.scrollTo(0,0); setTimeout(()=>document.getElementById("kf-a")?.focus(),0); return true; }
   if (a==="kReason"){ S.kReason = t.dataset.v; const h = document.getElementById("kf-r"); if (h) h.value = S.kReason;
+    if (S.kasaErr){ S.kasaErr = null; t.closest("form")?.querySelectorAll(".notice.bad").forEach(n=>n.remove()); }
     const nd = document.querySelector(".knote"); if (nd && S.kReason==="Diğer"){ nd.open = true; nd.querySelector("summary").textContent = "Ne için? (yaz)"; }
     const w = document.getElementById("k-supw"); if (w){ w.hidden = !K_MAL.includes(S.kReason); if (w.hidden) document.getElementById("kf-sup").value = ""; } document.querySelectorAll('[data-act="kReason"]').forEach(b=>b.classList.toggle("on", b===t)); return true; }
   if (a==="settings"){ S.tab = S.tab==="k-daha" ? "k-ana" : "k-daha"; S.msg = null; render(); window.scrollTo(0,0); return true; }
