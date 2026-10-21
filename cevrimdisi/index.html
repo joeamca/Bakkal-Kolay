@@ -4189,10 +4189,30 @@ function cartAdd(p, q, u, opt){
   if (same){ same.q = r3(Number(same.q) + q); items.splice(items.indexOf(same), 1); items.unshift(same); S.pos.flash = same.k; }
   else { const k = newId(); items.unshift({k, p:pid, n: p ? p.name : (opt.n||"Diğer"), q: r3(q), u: price, w, ...(manual ? {mu:1} : {})}); S.pos.flash = k; }
   if (p && !(Number(p.salePrice) > 0) && u == null) S.posWarn = `${p.name} için satış fiyatı girilmemiş. Sepette fiyatına dokunup yaz; ürünü düzenleyip de kaydedebilirsin.`;
-  else if (p && !w && !S.pos.ret && !p.recipe){ const c = pCur(p), inCart = items.filter(x=>x.p===pid).reduce((a,x)=>a + Number(x.q||0), 0);
-    if (c!=null && inCart > c + 1e-9) S.posWarn = c > 0 ? `Rafta ${pQtyTxt(c)} ${unitOf(p)} ${p.name} görünüyordu, sepette ${pQtyTxt(inCart)} var. Satış yapılır; sonra Stok'ta sayıyı düzelt.` : `${p.name} stokta bitmiş görünüyordu. Satış yapılır; mal geldiyse Mal Geldi ile ekle.`; }
+  if (p) cartClamp(p.id, same ? same.k : items[0]?.k);
   cartSave();
 }
+// Stokta olandan fazlası satılamaz: sepetteki toplam rafta kalanı geçerse fazlası sepetten düşülür.
+// (Tane ürünler; kilo ürünleri ve reçeteli ürünler hariç; iade modunda kontrol yok; hiç sayılmamış ürün serbest.)
+function stockLimit(pid){
+  const p = S.products.find(x=>x.id===pid);
+  if (!p || p.byWeight || p.recipe || S.pos.ret) return null;
+  const c = pCur(p); if (c == null) return null;
+  return {p, c: Math.max(0, c), inCart: r3(S.pos.items.filter(x=>x.p===pid && !x.w).reduce((a,x)=>a + Number(x.q||0), 0))};
+}
+function overMsg(L){ return L.c > 0 ? `Rafta sadece ${pQtyTxt(L.c)} ${unitOf(L.p)} ${L.p.name} var; daha fazlası satılamaz.` : `${L.p.name} stokta yok; satılamaz.`; }
+function cartClamp(pid, k){
+  const L = stockLimit(pid); if (!L || L.inCart <= L.c + 1e-9) return false;
+  let fazla = r3(L.inCart - L.c);
+  const lines = S.pos.items.filter(x=>x.p===pid && !x.w), first = lines.find(x=>x.k===k);
+  for (const x of first ? [first, ...lines.filter(y=>y!==first)] : lines){ if (fazla <= 0) break;
+    const d = Math.min(Number(x.q)||0, fazla); x.q = r3(Number(x.q) - d); fazla = r3(fazla - d); }
+  S.pos.items = S.pos.items.filter(x=>Number(x.q) > 0);
+  S.posErr = overMsg(L) + (L.c > 0 ? ` Sepette ${pQtyTxt(L.c)} bırakıldı.` : "");
+  S.posOver = pid; S.posWarn = null;
+  cartSave(); return true;
+}
+function cartOverList(){ const out = []; for (const pid of new Set(S.pos.items.map(x=>x.p).filter(Boolean))){ const L = stockLimit(pid); if (L && L.inCart > L.c + 1e-9) out.push(L); } return out; }
 // ---- Kamerayla barkod okuma (sadece telefon/tablet; kamera.js ilk basışta yüklenir) ----
 const CAM_OK = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && !!(window.matchMedia && matchMedia("(pointer:coarse)").matches);
 const camBtn = (id, label) => CAM_OK ? `<button type="button" class="camBtn" data-act="camScan" data-for="${id}" aria-label="Kamerayla barkod oku" title="Kamerayla oku">${ic("scan",22)}${label ? `<span style="margin-left:8px;font-weight:700">${label}</span>` : ""}</button>` : "";
@@ -4546,6 +4566,9 @@ async function askApply(){
     try{
       if (x.tur==="satis"){ const sl = x.sale;
         for (const q of sl.it){ if (!S.products.some(y=>y.id===q.p)) throw new Error("ürün yok"); }
+        { const need = {}; for (const q of sl.it) need[q.p] = (need[q.p]||0) + Number(q.q||0);
+          const ov = Object.entries(need).map(([pid, n])=>{ const p = S.products.find(y=>y.id===pid); if (!p || p.byWeight || p.recipe) return null; const c = pCur(p); return c!=null && n > Math.max(0,c) + 1e-9 ? overMsg({p, c: Math.max(0,c)}) : null; }).filter(Boolean);
+          if (ov.length){ fail.push(x.ozet + " — " + ov.join(" ")); continue; } }
         await posMarkStart();
         if (sl.pay==="veresiye"){ sl.ev = newId(); await store.addEvent({id:sl.ev, type:"borc", productId:"-", customerId:sl.c, amount:sl.tot, date:sl.d, saleId:sl.id, note:"Satış: " + sl.it.map(y=>y.n + (y.q!==1 ? " ×" + fmt(y.q,3) : "")).slice(0,4).join(", ") + (sl.it.length>4 ? " …" : "")}); }
         await store.saveSale(sl); try{ nAfterSale(sl); }catch(_){}
@@ -4681,7 +4704,11 @@ function viewSell(){
       ${camBtn("pos","Kamera")}<button class="primary" type="submit" aria-label="Ekle">${ic("plus",20)}</button></form>
     ${S.voice==="sat" && !isStaff() ? voiceBox("sat", "Örn. 2 ekmek, 1 süt, Ahmet'e veresiye") : ""}
     <div id="pos-res">${S.posQ ? posResults(S.posQ) : ""}</div>`;
-  if (S.posErr) L += `<div class="notice bad">${esc(S.posErr)}</div>`;
+  if (S.posErr) L += `<div class="notice bad" role="alert">${esc(S.posErr)}</div>`;
+  if (S.posErr && S.posOver){ const op = S.products.find(x=>x.id===S.posOver);
+    if (op) L += isStaff() ? `<p class="small muted">Rafta daha fazla ${esc(op.name)} varsa dükkân sahibi Stok'tan sayıyı düzeltmeli.</p>`
+      : `<form id="overform" class="pcard"><div><b>Rafta daha fazla ${esc(op.name)} mı var?</b><div class="small muted">Saydığın sayıyı yaz; stok düzelir, sonra sepette artırabilirsin.</div></div>
+        <div class="row nowrap"><input id="ov-n" inputmode="numeric" placeholder="Kaç ${esc(unitOf(op))}?" aria-label="Rafta kaç var"><button class="primary" type="submit">Stoğu Düzelt</button><button type="button" class="link" data-act="posOverClose">Kapat</button></div></form>`; }
   if (S.posWarn) L += `<div class="notice warn">${esc(S.posWarn)}</div>`;
   if (S.posUnknown){ const u = S.posUnknown;
     L += `<div class="pcard warnc"><div><b>${u.plu ? `Terazi kodu ${esc(u.plu)} hiçbir ürüne bağlı değil` : `Bu barkod kayıtlı değil`}</b>
@@ -4757,6 +4784,8 @@ async function posFinish(pay){
   const split = pay==="kismi"; if (split){ if (ret) return; pay = "veresiye"; }
   if (split && !cust){ S.posPick = true; S.posShort = true; render(); return; }
   if (pay==="veresiye" && !cust){ S.posPick = true; S.posErr = "Veresiye için müşteri seç (ya da yeni müşteri ekle)."; render(); return; }
+  { const ov = !S.pos.ret && cartOverList();   // başka telefondan satış/sayım olduysa sepet stoğu aşmış olabilir: satış kapanmaz
+    if (ov && ov.length){ S.posErr = ov.map(overMsg).join(" ") + " Sepetteki adedi azalt."; S.posOver = ov[0].p.id; render(); return; } }
   if (items.some(x=>!(Number(x.u) > 0))){ S.posErr = (isStaff() && !can("fiyat")) ? "Fiyatı olmayan ürünü dükkân sahibi satar. Ona haber ver." : "Fiyatı olmayan ürün var. Sepette fiyatını yaz."; render(); return; }
   const it = items.slice().reverse().map(x=>{ const p = x.p ? S.products.find(y=>y.id===x.p) : null, b = buyOf(p);
     return {p: x.p || "-", n: x.n, q: r3(sign*Math.abs(Number(x.q))), u: r2(x.u), ...(b!=null ? {b} : {}), ...(x.w ? {w:1} : {})}; });
@@ -4775,7 +4804,7 @@ async function posFinish(pay){
   }catch(e){ S.posErr = "Kaydedilemedi: " + (e?.message||e); render(); return; }
   S.posShort = false;
   S.pos = {items:[], cust:null, ret:false}; cartSave();
-  S.posLast = sale; S.posGiven = ""; S.posErr = null; S.posWarn = null; S.posPick = false; S.posClear = false; S.posUnknown = null;
+  S.posLast = sale; S.posGiven = ""; S.posErr = null; S.posOver = null; S.posWarn = null; S.posPick = false; S.posClear = false; S.posUnknown = null;
   offerUndo(split ? `Satış kaydedildi: ${TLx(given)} peşin, ${TLx(r2(tot-given))} veresiye.` : `${ret?"İade":"Satış"} kaydedildi: ${TLx(tot)} ${PAY[pay].toLocaleLowerCase("tr")}.`, ()=>posCancel(sale.id, true));
   setTimeout(()=>{ try{ nAfterSale(sale); }catch(_){} }, 300);
   render(); posFocus();
@@ -4979,7 +5008,8 @@ async function posAct(a, t){
   if (a==="posPick"){ const p = S.products.find(x=>x.id===t.dataset.id); if (p){ S.posQ = ""; S.posWarn = null; addFromSearch(p, 1); } render(); if (S.posWeigh) setTimeout(()=>document.getElementById("pw-kg")?.focus(),0); else posFocus(); return true; }
   if (a==="posEditPrice" && isStaff() && !can("fiyat")){ staffTry("Satış fiyatını değiştirmeyi denedi"); S.posErr = "Fiyatı sadece dükkân sahibi değiştirir."; render(true); return true; }
   if (a==="posEditPrice"){ S.posEditK = k; render(); setTimeout(()=>{ const e = document.getElementById("pos-ep"); if (e){ e.focus(); e.select(); } },0); return true; }
-  if (a==="posQ"){ const x = S.pos.items.find(y=>y.k===k); if (x){ x.q = r3(Number(x.q) + Number(t.dataset.d)); if (x.q <= 0) S.pos.items = S.pos.items.filter(y=>y!==x); cartSave(); } render(); posFocus(); return true; }
+  if (a==="posOverClose"){ S.posOver = null; S.posErr = null; render(); posFocus(); return true; }
+  if (a==="posQ"){ const x = S.pos.items.find(y=>y.k===k); if (x){ x.q = r3(Number(x.q) + Number(t.dataset.d)); if (x.q <= 0) S.pos.items = S.pos.items.filter(y=>y!==x); if (!(x.p && cartClamp(x.p, x.k)) && S.posOver===x.p){ S.posErr = null; S.posOver = null; } cartSave(); } render(); posFocus(); return true; }
   if (a==="posDel"){ S.pos.items = S.pos.items.filter(y=>y.k!==k); cartSave(); render(); posFocus(); return true; }
   if (a==="posClear"){ if (!S.posClear){ S.posClear = true; render(); return true; } S.pos = {items:[], cust:null, ret:false}; S.posClear = false; S.posShort = false; cartSave(); render(); posFocus(); return true; }
   if (a==="posRet"){ S.pos.ret = !S.pos.ret; cartSave(); render(); posFocus(); return true; }
@@ -5007,6 +5037,11 @@ async function posAct(a, t){
 async function posSubmit(id, form){
   const v = x => document.getElementById(x)?.value ?? "";
   if (id==="posform"){ posScan(v("pos-scan")); render(); if (S.posWeigh) setTimeout(()=>document.getElementById("pw-kg")?.focus(),0); else posFocus(); return true; }
+  if (id==="overform"){ const p = S.products.find(x=>x.id===S.posOver); const n = pnum(v("ov-n"));
+    if (!p) { S.posOver = null; S.posErr = null; render(); return true; }
+    if (!(n >= 0) || v("ov-n").trim()===""){ S.posErr = "Rafta kaç tane olduğunu yaz."; render(true); return true; }
+    const ok = await addCount(p, n); if (ok === false || (isStaff() && pCur(p) !== n)) { render(true); return true; }
+    S.posOver = null; S.posErr = null; S.posWarn = `Stok düzeltildi: rafta ${pQtyTxt(n)} ${unitOf(p)} ${p.name}. Sepette artırabilirsin.`; render(); posFocus(); return true; }
   if (id==="weighform"){ const p = S.products.find(x=>x.id===S.posWeigh); let kg = pnum(v("pw-kg")); if (kg > 20 && Number.isInteger(kg)) kg = kg/1000;
     if (!(kg > 0)){ S.posErr = "Kiloyu yaz."; render(true); return true; }
     if (p) cartAdd(p, r3(kg), null, {w:true}); S.posWeigh = null; S.posErr = null; render(); posFocus(); return true; }
@@ -5059,7 +5094,7 @@ document.addEventListener("input", ev=>{
 });
 document.addEventListener("change", ev=>{
   const el = ev.target;
-  if (el.dataset?.cq){ const x = S.pos.items.find(y=>y.k===el.dataset.cq); if (x){ let q = pnum(el.value); if (x.w && q > 20 && Number.isInteger(q)) q = q/1000; if (q > 0) x.q = r3(q); else S.pos.items = S.pos.items.filter(y=>y!==x); cartSave(); } render(); posFocus(); }
+  if (el.dataset?.cq){ const x = S.pos.items.find(y=>y.k===el.dataset.cq); if (x){ let q = pnum(el.value); if (x.w && q > 20 && Number.isInteger(q)) q = q/1000; if (q > 0) x.q = r3(q); else S.pos.items = S.pos.items.filter(y=>y!==x); if (x.p) cartClamp(x.p, x.k); cartSave(); } render(); posFocus(); }
   else if (el.dataset?.cu){ const x = S.pos.items.find(y=>y.k===el.dataset.cu); if (x){ const u = pnum(el.value); if (u >= 0){ x.u = r2(u); x.mu = 1; } if (u >= 100000) S.posWarn = `Fiyat çok yüksek görünüyor: ${TLx(u)}. Yanlışsa fiyatına dokunup düzelt.`; cartSave(); } S.posEditK = null; render(); posFocus(); }
 });
 document.addEventListener("keydown", ev=>{
@@ -5083,7 +5118,7 @@ function prunePos(){
 }
 document.addEventListener("submit", ev=>{
   const id = ev.target.id;
-  if (["posform","weighform","priceform","pcform","kasaform","tanform","tanpform","tanbform","tannform"].includes(id)){ ev.preventDefault(); posSubmit(id, ev.target).catch(e=>{ S.posErr = "Kaydedilemedi: " + (e?.message||e); render(); }); }
+  if (["posform","overform","weighform","priceform","pcform","kasaform","tanform","tanpform","tanbform","tannform"].includes(id)){ ev.preventDefault(); posSubmit(id, ev.target).catch(e=>{ S.posErr = "Kaydedilemedi: " + (e?.message||e); render(); }); }
 });
 // Depolama yedeği (satış kaydı desteklemeyen eski depolar için: sadece bu oturumda)
 function posMemSave(key, x){ const arr = S[key], i = arr.findIndex(y=>y.id===x.id); if (i>=0) arr[i] = {...x}; else arr.push({...x}); if (key==="sales") salesTouch(); renderData(); }
