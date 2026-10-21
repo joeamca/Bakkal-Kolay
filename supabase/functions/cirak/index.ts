@@ -105,6 +105,8 @@ async function handle(req: Request): Promise<Response> {
     const th = await linkFor(ownerId);
     if (!th) return j({ error: "Sahip hesabına geçilemedi (" + linkErr.slice(0, 120) + ")." }, 500);
     await db.from("cirak_oturum").delete().eq("staff_id", uid);
+    // çıraktan sahibe dönüşle açılan oturum "yetki parolamı unuttum" bağlantısı yerine geçmesin
+    await db.from("perm_resets").delete().eq("user_id", ownerId);
     try { await db.auth.admin.signOut(token, "local"); } catch (_) { /* oturum zaten kapanmış olabilir */ }
     return j({ ok: true, token_hash: th });
   }

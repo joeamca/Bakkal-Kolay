@@ -3398,6 +3398,21 @@ async function openShop(sh){
   try{ await pull(); }catch(e){ if (isNetErr(e)) C.online = false; else { S.msg = {kind:"bad", text:"Kayıtlar alınamadı: " + sbMsg(e)}; } }
   const L = readLocal(); if (L && (L.products.length || L.events.length || Object.keys(L.customers||{}).length)) S.localPending = L;
   subscribe(); C.ready = true; flush(); loadPeople().then(()=>renderData()); cloudSaveNow(); render(); saving();
+  permResetCheck();
+}
+// "Yetki parolamı unuttum" e-postasındaki bağlantıyla mı gelindi? (oturum son 1 saatte e-posta bağlantısıyla açıldıysa sunucuya sorulur)
+async function permResetCheck(){
+  try{
+    if (isStaff() || !C.shop || !SB) return;
+    const tok = (await SB.auth.getSession()).data?.session?.access_token; if (!tok) return;
+    const pl = JSON.parse(atob(tok.split(".")[1].replace(/-/g,"+").replace(/_/g,"/")));
+    const t = Math.max(0, ...(pl.amr||[]).filter(x=>["otp","magiclink","recovery"].includes(x.method)).map(x=>Number(x.timestamp)||0));
+    if (!t || Date.now()/1000 - t > 3600) return;
+    const {data} = await SB.rpc("perm_reset_state", {p_shop:C.shop.id});
+    if (!data?.ready) return;
+    S.tab = "ayarlar"; S.pm = {st:"reset"}; render();
+    setTimeout(()=>{ document.getElementById("permcard")?.scrollIntoView({block:"center"}); document.getElementById("pm-a")?.focus(); }, 60);
+  }catch(_){}
 }
 async function doLogin(){
   const raw = String(document.getElementById("lg-user")?.value||"").trim(), u = raw.includes("@") ? normEmail(raw) : normUser(raw), p = document.getElementById("lg-pass")?.value || "";
@@ -5446,7 +5461,14 @@ function permCard(){
   let b;
   if (p.st==="setup") b = `${err}<p class="small">Önce bir <b>yetki parolası</b> belirle. Ekran kilidi PIN'inden farklı olmalı, en az 6 karakter. Çırak bu ayarlara girmeye çalışırsa parola ister.</p>
     <form id="pmform" data-pm="setup" class="stack">${pw("pm-a","Yetki parolası","new-password")}${pw("pm-b","Parolayı tekrar yaz","new-password")}<div class="row"><button class="primary" type="submit">Kaydet</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
-  else if (p.st==="lock") b = `${err}<form id="pmform" data-pm="lock" class="stack">${pw("pm-a","Yetki parolası")}<div class="row"><button class="primary" type="submit">Aç</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
+  else if (p.st==="lock") b = `${err}<form id="pmform" data-pm="lock" class="stack">${pw("pm-a","Yetki parolası")}<div class="row"><button class="primary" type="submit">Aç</button><button type="button" data-perm="close">Vazgeç</button></div></form>
+    <button type="button" class="link" data-perm="forgot">Parolamı Unuttum</button>`;
+  else if (p.st==="forgot") b = `${err}<p>Hesabının e-postasına (<b>${esc(p.mail||"")}</b>) bir bağlantı göndereceğiz. Bağlantıya basınca uygulama açılır ve yeni yetki parolasını belirlersin.</p>
+    <div class="row"><button class="primary" data-perm="send" ${p.busy?"disabled":""}>${p.busy?'<span class="spin"></span> Gönderiliyor':"Bağlantı Gönder"}</button><button data-perm="close">Vazgeç</button></div>`;
+  else if (p.st==="noemail") b = `<p class="notice warn">Hesabına kayıtlı bir e-posta adresi yok, bu yüzden bağlantı gönderilemiyor. Yöneticiye yaz; parolanı o sıfırlar.</p><button data-perm="close">Kapat</button>`;
+  else if (p.st==="sent") b = `<p class="notice ok"><b>Bağlantı gönderildi.</b> ${esc(p.mail||"")} adresindeki e-postayı aç ve bağlantıya bas (1 saat geçerli). Gelmediyse gereksiz (spam) klasörüne de bak.</p><button data-perm="close">Kapat</button>`;
+  else if (p.st==="reset") b = `${err}<p class="small">E-postadaki bağlantıyla geldin. <b>Yeni yetki parolasını</b> belirle (en az 6 karakter, ekran kilidi PIN'inden farklı).</p>
+    <form id="pmform" data-pm="reset" class="stack">${pw("pm-a","Yeni yetki parolası","new-password")}${pw("pm-b","Parolayı tekrar yaz","new-password")}<div class="row"><button class="primary" type="submit">Kaydet</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
   else if (p.st==="change") b = `${err}<form id="pmform" data-pm="change" class="stack">${pw("pm-a","Eski parola")}${pw("pm-b","Yeni parola (en az 6 karakter)","new-password")}<div class="row"><button class="primary" type="submit">Değiştir</button><button type="button" data-perm="open">Vazgeç</button></div></form>`;
   else if (p.st==="open") b = `${err}<p class="small muted">İşaretlediklerini çırak yapabilir. İşaretsizler kapalıdır; çırak denerse sana bildirim gelir.</p>
     ${PERMS.map(([k,l,d])=>`<label class="check" style="align-items:flex-start"><input type="checkbox" data-pk="${k}" ${S.perm&&S.perm[k]?"checked":""}><span><b>${l}</b><br><small class="muted">${d}</small></span></label>`).join("")}
@@ -5461,6 +5483,16 @@ document.addEventListener("click", async ev=>{
   const t = ev.target.closest?.("[data-perm]"); if (!t || !SB || !C.shop) return; const a = t.dataset.perm;
   try{
     if (a==="close"){ S.pm = null; render(true); }
+    else if (a==="forgot"){ const mail = (await SB.auth.getSession()).data?.session?.user?.email || "";
+      S.pm = !mail || mail.endsWith("@" + CLOUD.emailDomain) ? {st:"noemail"} : {st:"forgot", mail}; render(true); }
+    else if (a==="send"){ const mail = S.pm?.mail; if (!mail) return; S.pm = {st:"forgot", mail, busy:true}; render(true);
+      const {data, error} = await SB.rpc("perm_reset_start", {p_shop:C.shop.id});
+      if (error){ S.pm = {st:"forgot", mail, err:"Şu an gönderilemedi. İnternetini kontrol et."}; return render(true); }
+      if (!data.ok){ S.pm = data.reason==="noemail" ? {st:"noemail"} : {st:"forgot", mail, err: data.reason==="cool" ? `Az önce gönderildi. ${data.wait} saniye sonra tekrar dene.` : "Gönderilemedi."}; return render(true); }
+      const {error:e2} = await SB.auth.signInWithOtp({email: mail, options:{shouldCreateUser:false, emailRedirectTo: SITE()}});
+      if (e2){ S.pm = {st:"forgot", mail, err: /rate|limit|seconds/i.test(e2.message||"") ? "Çok sık denendi. Birkaç dakika sonra tekrar dene." : "E-posta gönderilemedi: " + sbMsg(e2)}; return render(true); }
+      S.pm = {st:"sent", mail}; render(true);
+      nSend("calisan", "Yetki parolası sıfırlama istendi", "E-postana yeni yetki parolası bağlantısı gönderildi. Sen istemediysen kontrol et.", "yetki-sifirla", true); }
     else if (a==="open"){ S.pm = {st:"open", t:Date.now()}; render(true); }
     else if (a==="change"){ S.pm = {st:"change", t:Date.now()}; render(true); }
     else if (a==="start"){ S.pm = {st:"closed", busy:true}; render(true);
@@ -5475,6 +5507,16 @@ document.addEventListener("submit", async ev=>{
   if (ev.target.id!=="pmform") return; ev.preventDefault(); if (!SB || !C.shop) return;
   const kind = ev.target.dataset.pm, a = document.getElementById("pm-a")?.value || "", b = document.getElementById("pm-b")?.value || "";
   try{
+    if (kind==="reset"){
+      if (a.length < 6) { S.pm = {st:"reset", err:"En az 6 karakter yaz."}; return render(true); }
+      if (a !== b){ S.pm = {st:"reset", err:"İki parola aynı değil."}; return render(true); }
+      const {data, error} = await SB.rpc("perm_reset_finish", {p_shop:C.shop.id, p_new:a});
+      if (error) S.pm = {st:"reset", err:String(error.message||"Kaydedilemedi.").replace(/^.*?ERROR:\s*/,"")};
+      else if (!data.ok) S.pm = {st:"closed", err:"Bağlantının süresi dolmuş. \"Yetkileri Ayarla\" → \"Parolamı Unuttum\" ile yeni bağlantı iste."};
+      else { S.pm = {st:"open", t:Date.now()}; S.msg = {kind:"ok", text:"Yeni yetki parolası kaydedildi."};
+        nSend("calisan", "Yetki parolası yenilendi", "Yetki parolası e-postadaki bağlantıyla değiştirildi. Sen yapmadıysan hemen kontrol et.", "yetki-sifirla", true); }
+      return render(true);
+    }
     if (kind==="setup"){
       if (a.length < 6) { S.pm = {st:"setup", err:"En az 6 karakter yaz."}; return render(true); }
       if (a !== b){ S.pm = {st:"setup", err:"İki parola aynı değil."}; return render(true); }
