@@ -93,9 +93,11 @@ async function handle(req: Request): Promise<Response> {
       // 5 yanlışta kilit: dükkân sahibine bildirim (her kilitte bekleme uzar: 15 dk → 1 sa → 6 sa → 24 sa)
       if (last.notify) {
         const w = Number(last.wait || 0), sure = w >= 3600 ? `${Math.round(w / 3600)} saat` : `${Math.round(w / 60)} dakika`;
+        const { data: pr } = await db.from("profiles").select("full_name, username").eq("user_id", uid).maybeSingle();
+        const kim = String(pr?.full_name || pr?.username || "Çırak").slice(0, 40);
         try {
           await fetch(`${SUPA_URL}/functions/v1/bildir`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}`, apikey: Deno.env.get("SUPABASE_ANON_KEY") || "" },
-            body: JSON.stringify({ type: "calisan", shop_id: shop, title: "Sahip PIN'i 5 kez yanlış girildi", body: `Çırak hesabından sahibe dönüş denendi; PIN ${sure} kilitlendi. Sen değilsen PIN'ini değiştir.`, tag: "pin-kilit" }) });
+            body: JSON.stringify({ type: "calisan", shop_id: shop, title: `${kim}: sahip PIN'ini 5 kez yanlış girdi`, body: `${kim} çırak hesabından sahibe dönmeyi denedi; PIN ${sure} kilitlendi. Sen değilsen PIN'ini değiştir.`, tag: "pin-kilit" }) });
         } catch (e) { console.log("bildirim gönderilemedi", String(e).slice(0, 120)); }
       }
       return j(last);

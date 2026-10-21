@@ -148,6 +148,8 @@ details.more>.stack{margin-top:8px}
 .toast button{background:transparent;border-color:var(--bg);color:var(--bg);min-height:40px;padding:6px 14px;font-weight:600}
 .toast[hidden]{display:none}
 [hidden]{display:none!important}
+#savedPill{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 10px);transform:translate(-50%,-140%);background:var(--accent);color:#fff;font-weight:700;font-size:15px;padding:8px 16px;border-radius:999px;box-shadow:0 6px 18px rgba(0,0,0,.18);z-index:60;transition:transform .2s ease;pointer-events:none;max-width:92vw;text-align:center}
+#savedPill.on{transform:translate(-50%,0)}#savedPill.off{background:var(--warn,#b7791f)}
 .pindots{display:flex;justify-content:center;gap:14px;margin:4px 0 8px}
 .pindots i{width:16px;height:16px;border-radius:50%;border:2px solid var(--accent);display:block}
 .pindots i.on{background:var(--accent)}
@@ -882,18 +884,30 @@ const S = { tab:"ana", products:[], events:[], suppliers:{}, customers:{}, setti
 let real = null, pending = 0, readyRes;
 const ready = new Promise(r => readyRes = r);
 const setStore = s => { real = s; readyRes(s); };
+// Her kayıttan sonra ekranın üstünde kısa "Kaydedildi" bilgisi (internet yoksa: telefonda bekliyor)
+function flashSaved(){
+  try{
+    let el = document.getElementById("savedPill");
+    if (!el){ el = document.createElement("div"); el.id = "savedPill"; el.setAttribute("role","status"); el.setAttribute("aria-live","polite"); document.body.appendChild(el); }
+    const off = S.mode==="cloud" && S.cloud && !S.cloud.online;
+    el.textContent = off ? "✓ Telefona kaydedildi · internet gelince gönderilecek" : "✓ Kaydedildi";
+    el.classList.toggle("off", !!off); el.classList.add("on");
+    clearTimeout(flashSaved.t); flashSaved.t = setTimeout(()=>el.classList.remove("on"), off ? 3000 : 1600);
+  }catch(_){}
+}
+const saved = pr => pr.then(r=>{ if (r !== false) flashSaved(); return r; });
 const store = {
-  saveProduct: p => ready.then(()=>real.saveProduct(p)),
-  deleteProduct: id => ready.then(()=>real.deleteProduct(id)),
-  addEvent: e => ready.then(()=>real.addEvent(e)),
-  deleteEvent: id => ready.then(()=>real.deleteEvent(id)),
-  saveSupplier: x => ready.then(()=>real.saveSupplier(x)),
+  saveProduct: p => saved(ready.then(()=>real.saveProduct(p))),
+  deleteProduct: id => saved(ready.then(()=>real.deleteProduct(id))),
+  addEvent: e => saved(ready.then(()=>real.addEvent(e))),
+  deleteEvent: id => saved(ready.then(()=>real.deleteEvent(id))),
+  saveSupplier: x => saved(ready.then(()=>real.saveSupplier(x))),
   saveSettings: x => ready.then(()=>real.saveSettings(x)),
-  saveCustomer: x => ready.then(()=>real.saveCustomer(x)),
-  deleteCustomer: id => ready.then(()=>real.deleteCustomer(id)),
-  saveSale: x => ready.then(()=> real.saveSale ? real.saveSale(x) : posMemSave("sales", x)),
-  saveCash: x => ready.then(()=> real.saveCash ? real.saveCash(x) : posMemSave("cash", x)),
-  deleteCash: id => ready.then(()=> real.deleteCash ? real.deleteCash(id) : posMemDel("cash", id)),
+  saveCustomer: x => saved(ready.then(()=>real.saveCustomer(x))),
+  deleteCustomer: id => saved(ready.then(()=>real.deleteCustomer(id))),
+  saveSale: x => saved(ready.then(()=> real.saveSale ? real.saveSale(x) : posMemSave("sales", x))),
+  saveCash: x => saved(ready.then(()=> real.saveCash ? real.saveCash(x) : posMemSave("cash", x))),
+  deleteCash: id => saved(ready.then(()=> real.deleteCash ? real.deleteCash(id) : posMemDel("cash", id))),
 };
 function saving(){
   const el = document.getElementById("saveState");
@@ -2388,7 +2402,15 @@ async function exportXlsx(){
     const set = [...WEEK.map(d=>({"Ayar":"Gün: "+DN[d], "Değer": w[d]>1?"Yoğun":w[d]<1?"Sakin":"Normal"})),
       ...specials().map(x=>({"Ayar":"Özel gün: "+x.d, "Değer":(SPECIAL[x.k]?.t||"")+" | "+(x.name||"")})),
       {"Ayar":"Paranın aylık maliyeti %", "Değer":S.settings?.monthlyRate??""}, {"Ayar":"Sipariş başına emek TL", "Değer":S.settings?.orderCost??""}, {"Ayar":"Dükkân adı", "Değer":S.settings?.shopName??""}];
-    const add = (rows, name, blank) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows.length?rows:[blank]), name);
+    const COLMAP = {"Kod":"Kayıt no (değiştirme)", "Müşteri kodu":"Müşteri kayıt no (değiştirme)", "Satış kodu":"Satış kayıt no (değiştirme)", "Ham (geri yükleme için, değiştirme)":"Yedek verisi (dokunma)"};
+    const ren = rows => rows.map(r=>{ const o = {}; for (const k in r) o[COLMAP[k]||k] = r[k]; return o; });
+    const add = (rows, name, blank) => X.utils.book_append_sheet(wb, X.utils.json_to_sheet(rows.length?ren(rows):[blank]), name);
+    add([{"Bu dosya":"Bakkal Kolay yedeği · " + new Date().toLocaleString("tr-TR")},
+      {"Bu dosya":"Her sayfa bir bölüm: Ürünler, Hareketler, Müşteriler, Veresiye, Satışlar, Kasa…"},
+      {"Bu dosya":"\"Kayıt no\" sütunları uygulamanın her kaydı tanıdığı numaradır. Geri yüklerken aynı kaydı bulmak için kullanılır; değiştirme, silme."},
+      {"Bu dosya":"\"Yedek verisi\" sütunu satış ve kasa kayıtlarının tam hâlidir; dokunma."},
+      {"Bu dosya":"Telefonu değiştirirsen: Ayarlar → Excel'den yükle ile bu dosyayı seç. Aynı dosyayı iki kez yüklemek kayıtları ikiye katlamaz."},
+      {"Bu dosya":"Fiyat ya da ad düzeltmek istersen Ürünler sayfasında değiştirip geri yükleyebilirsin; kayıt no'ya dokunma."}], "Bilgi", {"Bu dosya":""});
     add(prod, "Ürünler", {"Ürün":""}); add(mov, "Hareketler", {"Tarih":""}); add(supLed, "Tedarikçi hesabı", {"Tarih":""}); add(sup, "Tedarikçiler", {"Tedarikçi":""}); add(cust, "Müşteriler", {"Ad":""}); add(led, "Veresiye", {"Tarih":""}); add(sal, "Satışlar", {"Tarih":""}); add(kas, "Kasa", {"Tarih":""}); add(set, "Ayarlar", {"Ayar":""});
     const buf = X.write(wb, {type:"array", bookType:"xlsx"});
     try{ localStorage.setItem("bd-son-yedek", String(Date.now())); }catch(_){}
@@ -2417,7 +2439,9 @@ async function readXlsx(file){
   try{
     const X = await loadXLSX(true);
     const wb = X.read(await file.arrayBuffer(), {type:"array", cellDates:true});
-    const sheet = n => { const k = wb.SheetNames.find(x=>norm(x)===norm(n)); return k ? X.utils.sheet_to_json(wb.Sheets[k], {defval:""}) : []; };
+    const ALIAS = {"Kayıt no (değiştirme)":"Kod", "Müşteri kayıt no (değiştirme)":"Müşteri kodu", "Satış kayıt no (değiştirme)":"Satış kodu", "Yedek verisi (dokunma)":"Ham (geri yükleme için, değiştirme)"};
+    const unalias = rows => rows.map(r=>{ const o = {}; for (const k in r) o[ALIAS[k]||k] = r[k]; return o; });
+    const sheet = n => { const k = wb.SheetNames.find(x=>norm(x)===norm(n)); return k ? unalias(X.utils.sheet_to_json(wb.Sheets[k], {defval:""})) : []; };
     const P = sheet("Ürünler"), H = sheet("Hareketler"), T = sheet("Tedarikçiler"), A = sheet("Ayarlar"), MU = sheet("Müşteriler"), VE = sheet("Veresiye"), SL = sheet("Satışlar"), KS = sheet("Kasa"), TH = sheet("Tedarikçi hesabı");
     if (!P.length && !H.length && !MU.length && !SL.length) throw {message:"Dosyada 'Ürünler' ya da 'Hareketler' sayfası bulunamadı. Bu uygulamadan alınmış bir Excel dosyası seç."};
     const prods = [], byName = {};
@@ -4154,13 +4178,24 @@ function cartLoad(){ try{ const c = JSON.parse(localStorage.getItem(CART_KEY)||"
 S.pos = cartLoad();
 function cartSave(){ try{ localStorage.setItem(CART_KEY, JSON.stringify({items:S.pos.items, cust:S.pos.cust, ret:S.pos.ret})); }catch(_){} }
 function cartTotal(){ return r2(S.pos.items.reduce((a,x)=>a + (Number(x.q)||0)*(Number(x.u)||0), 0)); }
+// Ürün sonradan değiştirilirse (kilo↔tane, ad, satış fiyatı) sepetteki satırlar kendiliğinden güncellenir
+function cartSync(){
+  let ch = [];
+  for (const x of S.pos.items){ if (!x.p) continue; const p = S.products.find(y=>y.id===x.p); if (!p) continue;
+    const w = !!p.byWeight;
+    if (!!x.w !== w){ x.w = w; if (!w && Number(x.q) % 1) x.q = 1; ch.push(p.name); }
+    if (x.n !== p.name){ x.n = p.name; }
+    const sp = Number(p.salePrice)||0; if (!x.mu && sp > 0 && Number(x.u) !== sp){ x.u = sp; ch.push(p.name); } }
+  if (ch.length){ cartSave(); S.posWarn = `Sepet güncellendi: ${[...new Set(ch)].join(", ")} (ürün bilgisi değişti).`; }
+}
 function cartAdd(p, q, u, opt){
   opt = opt || {};
   const w = !!(p?.byWeight || opt.w), price = u != null ? Number(u) : (Number(p?.salePrice)||0);
   const pid = p ? p.id : null, items = S.pos.items;
   const same = !w && items.find(x=>x.p===pid && !x.w && Number(x.u)===price && (pid || x.n===(opt.n||"Diğer")));
+  const manual = u != null && p && Number(u) !== Number(p.salePrice);
   if (same){ same.q = r3(Number(same.q) + q); items.splice(items.indexOf(same), 1); items.unshift(same); S.pos.flash = same.k; }
-  else { const k = newId(); items.unshift({k, p:pid, n: p ? p.name : (opt.n||"Diğer"), q: r3(q), u: price, w}); S.pos.flash = k; }
+  else { const k = newId(); items.unshift({k, p:pid, n: p ? p.name : (opt.n||"Diğer"), q: r3(q), u: price, w, ...(manual ? {mu:1} : {})}); S.pos.flash = k; }
   if (p && !(Number(p.salePrice) > 0) && u == null) S.posWarn = `${p.name} için satış fiyatı girilmemiş. Sepette fiyatına dokunup yaz; ürünü düzenleyip de kaydedebilirsin.`;
   else if (p && !w && !S.pos.ret && !p.recipe){ const c = pCur(p), inCart = items.filter(x=>x.p===pid).reduce((a,x)=>a + Number(x.q||0), 0);
     if (c!=null && inCart > c + 1e-9) S.posWarn = c > 0 ? `Rafta ${pQtyTxt(c)} ${unitOf(p)} ${p.name} görünüyordu, sepette ${pQtyTxt(inCart)} var. Satış yapılır; sonra Stok'ta sayıyı düzelt.` : `${p.name} stokta bitmiş görünüyordu. Satış yapılır; mal geldiyse Mal Geldi ile ekle.`; }
@@ -4633,6 +4668,7 @@ function posTabs(){
   return `<nav class="seg" aria-label="Satış bölümleri">${T.map(([k,l,i])=>`<button class="${v===k?"on":""}" data-act="posView" data-v="${k}" aria-current="${v===k?"page":"false"}">${ic(i,17)}<span>${l}</span></button>`).join("")}<button data-act="goRapor">${ic("chart",17)}<span>Raporlar</span></button></nav>`;
 }
 function viewPos(){
+  try{ cartSync(); }catch(e){ console.warn("cartSync", e); }
   const v = S.posView || "sat";
   let h = posTabs();
   if (S.msg) h += `<div class="notice ${S.msg.kind||"ok"}">${esc(S.msg.text)}</div>`;
@@ -5032,7 +5068,7 @@ document.addEventListener("input", ev=>{
 document.addEventListener("change", ev=>{
   const el = ev.target;
   if (el.dataset?.cq){ const x = S.pos.items.find(y=>y.k===el.dataset.cq); if (x){ let q = pnum(el.value); if (x.w && q > 20 && Number.isInteger(q)) q = q/1000; if (q > 0) x.q = r3(q); else S.pos.items = S.pos.items.filter(y=>y!==x); cartSave(); } render(); posFocus(); }
-  else if (el.dataset?.cu){ const x = S.pos.items.find(y=>y.k===el.dataset.cu); if (x){ const u = pnum(el.value); if (u >= 0) x.u = r2(u); if (u >= 100000) S.posWarn = `Fiyat çok yüksek görünüyor: ${TLx(u)}. Yanlışsa fiyatına dokunup düzelt.`; cartSave(); } S.posEditK = null; render(); posFocus(); }
+  else if (el.dataset?.cu){ const x = S.pos.items.find(y=>y.k===el.dataset.cu); if (x){ const u = pnum(el.value); if (u >= 0){ x.u = r2(u); x.mu = 1; } if (u >= 100000) S.posWarn = `Fiyat çok yüksek görünüyor: ${TLx(u)}. Yanlışsa fiyatına dokunup düzelt.`; cartSave(); } S.posEditK = null; render(); posFocus(); }
 });
 document.addEventListener("keydown", ev=>{
   if (S.tab!=="satis" || (S.posView||"sat")!=="sat" || S.locked) return;
@@ -5957,6 +5993,7 @@ function kAna(){
   return x;
 }
 function kPos(){
+  try{ cartSync(); }catch(e){ console.warn("cartSync", e); }
   const v = S.posView || "sat";
   let h = "";
   if (S.msg && v!=="sat") h += `<div class="notice ${S.msg.kind||"ok"}">${esc(S.msg.text)}</div>`;
