@@ -1,3 +1,4 @@
+-- Not: tablo izinleri (GRANT) supabase/izinler.sql dosyasında; bu dosyadan sonra o da çalıştırılmalı.
 -- Kendin Anlat (yapay zekâ ile duyuru): iş kuyruğu ve limitler. Canlı veritabanında uygulandı.
 -- Yazma sadece sunucu fonksiyonundan (service role) yapılır; uygulama sadece kendi dükkânının işlerini okur.
 -- Limit kaydı yoksa varsayılan: günde 3, ayda 20 üretim. Değiştirmek için:

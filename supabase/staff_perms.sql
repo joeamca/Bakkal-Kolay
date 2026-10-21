@@ -1,3 +1,4 @@
+-- Not: tablo izinleri (GRANT) supabase/izinler.sql dosyasında; bu dosyadan sonra o da çalıştırılmalı.
 -- Çırak yetkileri: sahibin Ayarlar'dan açıp kapattığı liste + ayrı "yetki parolası".
 -- Yetkiler docs tablosunda kind='settings', id='staffperm' kaydında durur. Sadece sahip yazar.
 -- Yetki parolası ekran kilidi PIN'inden farklıdır; sunucuda hash olarak tutulur, yanlış sayısı sunucuda sayılır.

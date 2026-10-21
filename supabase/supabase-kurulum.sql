@@ -1,3 +1,4 @@
+-- Not: tablo izinleri (GRANT) supabase/izinler.sql dosyasında; bu dosyadan sonra o da çalıştırılmalı.
 -- =====================================================================
 --  Bakkal Defteri · Supabase veritabanı kurulumu
 --  Supabase panelinde: SQL Editor → New query → bu dosyanın TAMAMINI

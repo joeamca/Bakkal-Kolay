@@ -1,3 +1,4 @@
+-- Not: tablo izinleri (GRANT) supabase/izinler.sql dosyasında; bu dosyadan sonra o da çalıştırılmalı.
 -- Çırak modu (sunucu tarafı). Canlıda "cirak_modu" göçü olarak uygulandı; edge function: functions/cirak.
 create table if not exists public.cirak_oturum (
   nonce uuid primary key default gen_random_uuid(),

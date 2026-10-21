@@ -5452,9 +5452,12 @@ function permCard(){
   const err = p.err ? `<div class="notice bad">${esc(p.err)}</div>` : "";
   const pw = (id, l, ac) => `<label>${l}<input id="${id}" type="password" autocomplete="${ac||"off"}" maxlength="30"></label>`;
   let b;
-  if (p.st==="setup") b = `${err}<p class="small">Önce bir <b>yetki parolası</b> belirle. Ekran kilidi PIN'inden farklı olmalı, en az 6 karakter. Çırak bu ayarlara girmeye çalışırsa parola ister.</p>
+  if (p.st==="setup") b = `${err}<p class="small">${p.reset ? "Giriş şifren doğru. Şimdi <b>yeni yetki parolasını</b> belirle." : "Önce bir <b>yetki parolası</b> belirle."} Ekran kilidi PIN'inden farklı olmalı, en az 6 karakter. Çırak bu ayarlara girmeye çalışırsa parola ister.</p>
     <form id="pmform" data-pm="setup" class="stack">${pw("pm-a","Yetki parolası","new-password")}${pw("pm-b","Parolayı tekrar yaz","new-password")}<div class="row"><button class="primary" type="submit">Kaydet</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
-  else if (p.st==="lock") b = `${err}<form id="pmform" data-pm="lock" class="stack">${pw("pm-a","Yetki parolası")}<div class="row"><button class="primary" type="submit">Aç</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
+  else if (p.st==="lock") b = `${err}<form id="pmform" data-pm="lock" class="stack">${pw("pm-a","Yetki parolası")}<div class="row"><button class="primary" type="submit">Aç</button><button type="button" data-perm="close">Vazgeç</button></div></form>
+    <button type="button" class="link" data-perm="forgot">Parolamı Unuttum</button>`;
+  else if (p.st==="forgot") b = `${err}<p class="small">Yetki parolanı unuttuysan uygulamaya girerken kullandığın <b>giriş şifreni</b> yaz. Doğruysa yeni yetki parolası belirlersin.</p>
+    <form id="pmform" data-pm="forgot" class="stack">${pw("pm-a","Giriş şifren","current-password")}<div class="row"><button class="primary" type="submit" ${p.busy?"disabled":""}>${p.busy?'<span class="spin"></span> Kontrol ediliyor':"Devam"}</button><button type="button" data-perm="close">Vazgeç</button></div></form>`;
   else if (p.st==="change") b = `${err}<form id="pmform" data-pm="change" class="stack">${pw("pm-a","Eski parola")}${pw("pm-b","Yeni parola (en az 6 karakter)","new-password")}<div class="row"><button class="primary" type="submit">Değiştir</button><button type="button" data-perm="open">Vazgeç</button></div></form>`;
   else if (p.st==="open") b = `${err}<p class="small muted">İşaretlediklerini çırak yapabilir. İşaretsizler kapalıdır; çırak denerse sana bildirim gelir.</p>
     ${PERMS.map(([k,l,d])=>`<label class="check" style="align-items:flex-start"><input type="checkbox" data-pk="${k}" ${S.perm&&S.perm[k]?"checked":""}><span><b>${l}</b><br><small class="muted">${d}</small></span></label>`).join("")}
@@ -5469,6 +5472,7 @@ document.addEventListener("click", async ev=>{
   const t = ev.target.closest?.("[data-perm]"); if (!t || !SB || !C.shop) return; const a = t.dataset.perm;
   try{
     if (a==="close"){ S.pm = null; render(true); }
+    else if (a==="forgot"){ S.pm = {st:"forgot"}; render(true); setTimeout(()=>document.getElementById("pm-a")?.focus(), 30); }
     else if (a==="open"){ S.pm = {st:"open", t:Date.now()}; render(true); }
     else if (a==="change"){ S.pm = {st:"change", t:Date.now()}; render(true); }
     else if (a==="start"){ S.pm = {st:"closed", busy:true}; render(true);
@@ -5483,9 +5487,26 @@ document.addEventListener("submit", async ev=>{
   if (ev.target.id!=="pmform") return; ev.preventDefault(); if (!SB || !C.shop) return;
   const kind = ev.target.dataset.pm, a = document.getElementById("pm-a")?.value || "", b = document.getElementById("pm-b")?.value || "";
   try{
+    if (kind==="forgot"){
+      if (!a){ S.pm = {st:"forgot", err:"Giriş şifreni yaz."}; return render(true); }
+      S.pm = {st:"forgot", busy:true}; render(true);
+      const mail = (await SB.auth.getSession()).data?.session?.user?.email || "";
+      const {error} = await SB.auth.signInWithPassword({email: mail, password: a});
+      if (error){ S.permForgotFail = (S.permForgotFail||0) + 1;
+        if (S.permForgotFail % 3 === 0) nSend("calisan", "Yetki parolası sıfırlama: giriş şifresi 3 kez yanlış", "Yetki parolasını sıfırlamak için giriş şifresi 3 kez yanlış girildi. Sen değilsen kontrol et.", "yetki-sifirla", true);
+        S.pm = {st:"forgot", err: isNetErr(error) ? "İnternet yok. Bağlanınca tekrar dene." : /rate|too many|seconds/i.test(error.message||"") ? "Çok sık denendi. Birkaç dakika sonra tekrar dene." : "Giriş şifresi yanlış."}; return render(true); }
+      S.permForgotFail = 0; S.pm = {st:"setup", reset:true}; render(true); setTimeout(()=>document.getElementById("pm-a")?.focus(), 30); return;
+    }
     if (kind==="setup"){
-      if (a.length < 6) { S.pm = {st:"setup", err:"En az 6 karakter yaz."}; return render(true); }
-      if (a !== b){ S.pm = {st:"setup", err:"İki parola aynı değil."}; return render(true); }
+      const rs = !!S.pm?.reset;
+      if (a.length < 6) { S.pm = {st:"setup", reset:rs, err:"En az 6 karakter yaz."}; return render(true); }
+      if (a !== b){ S.pm = {st:"setup", reset:rs, err:"İki parola aynı değil."}; return render(true); }
+      if (rs){ const {data, error} = await SB.rpc("perm_pin_reset", {p_shop:C.shop.id, p_new:a});
+        if (error) S.pm = {st:"setup", reset:true, err:sbMsg(error)};
+        else if (!data.ok) S.pm = {st:"forgot", err:"Süre doldu. Giriş şifreni tekrar yaz."};
+        else { S.pm = {st:"open", t:Date.now()}; S.msg = {kind:"ok", text:"Yeni yetki parolası kaydedildi."};
+          nSend("calisan", "Yetki parolası yenilendi", "Yetki parolası giriş şifresiyle değiştirildi. Sen yapmadıysan hemen kontrol et.", "yetki-sifirla", true); }
+        return render(true); }
       const {data, error} = await SB.rpc("perm_pin_set", {p_shop:C.shop.id, p_new:a});
       if (error) S.pm = {st:"setup", err:String(error.message||"Kaydedilemedi.")};
       else S.pm = {st:"open", t:Date.now()};

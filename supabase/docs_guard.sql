@@ -1,3 +1,4 @@
+-- Not: tablo izinleri (GRANT) supabase/izinler.sql dosyasında; bu dosyadan sonra o da çalıştırılmalı.
 -- Çalışan (staff) yetki sınırı + değişiklik geçmişi.
 -- Supabase panelinde SQL Editor'a yapıştırıp çalıştır. Mevcut kayıtlara dokunmaz.
 
