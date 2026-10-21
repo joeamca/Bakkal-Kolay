@@ -4329,7 +4329,7 @@ function askTool(name, a){
       let yeni, eski;
       if (alan==="ad"){ yeni = String(a.deger||"").replace(/[\u0000-\u001f]/g," ").trim().slice(0, 80); if (yeni.length < 2) return {hata:"Geçersiz ad."}; eski = p.name; }
       else { yeni = Number(String(a.deger).replace(",", ".")); if (!Number.isFinite(yeni) || yeni < 0 || yeni > 1e6) return {hata:"Geçersiz sayı."};
-        if (alan!=="stok_sayim") yeni = r2(yeni); else yeni = r3(yeni);
+        if (alan!=="stok_sayim") yeni = r2(yeni); else { yeni = r3(yeni); if (fracBad(p, yeni)) return {hata:"Bu ürün tane ile satılıyor; stok küsuratlı olamaz. Kullanıcıya tam sayı sor."}; }
         if (alan==="satis_fiyati" && !(yeni > 0)) return {hata:"Satış fiyatı sıfırdan büyük olmalı."};
         eski = alan==="satis_fiyati" ? (p.salePrice ?? null) : alan==="alis_fiyati" ? (p.buyPrice ?? null) : pCur(p); }
       A.pending = (A.pending||[]).filter(x=>!(x.pid===p.id && x.alan===alan));
@@ -4435,6 +4435,7 @@ function askTool(name, a){
       const sale = num0(a.satis_fiyati), buy = num0(a.alis_fiyati), cnt = num0(a.stok);
       if (!(sale > 0)) return {hata:"Satış fiyatı gerekli (sıfırdan büyük). Kullanıcıya sor."};
       if (Number.isNaN(buy) || Number.isNaN(cnt)) return {hata:"Alış fiyatı ya da stok sayısı geçersiz."};
+      if (cnt != null && cnt % 1 && !(a.kilo===true || a.kilo==="true")) return {hata:"Tane ile satılan üründe stok küsuratlı olamaz. Kiloyla satılıyorsa kilo=true ver, değilse tam sayı sor."};
       if (S.products.some(x=>norm(x.name)===norm(ad))) return {hata:"Bu adla ürün zaten var: " + ad + ". Düzeltme için duzeltme_oner kullan."};
       let code = String(a.barkod||"").replace(/\D/g, "");
       if (code){ if (!eanOk(code)) return {hata:"Barkod rakamları tutmadı (kontrol basamağı), yazılmadı. Kullanıcıya tekrar söylemesini ya da kamerayla okutmasını söyle."};
@@ -4921,8 +4922,11 @@ function viewHareket(){
   }).join("");
   return noticeHtml() + backLink() + `<section class="card stack"><h2>Stok Hareketleri</h2><p class="small muted">Sayım, mal geldi ve fire kayıtları. Sayımda "kaçtan kaça" yazılır; eski kayıtlarda önceki sayım esas alınır.</p><div class="fchips">${chips}</div>${list || `<p class="muted">Kayıt yok.</p>`}${rows.length>150 ? `<p class="small muted">Son 150 kayıt gösteriliyor.</p>` : ""}</section>`;
 }
+const FRAC_MSG = "Tane ile satılan üründe küsurat olmaz (2,5 tane yazılamaz). Tartıyla satılıyorsa ürünü düzenleyip \"Tartıyla satılıyor\"u işaretle.";
+const fracBad = (p, q) => Number(q) % 1 !== 0 && !p?.byWeight && unitOf(p) !== "kg";
 async function addCount(p, cnt){
   if (!(cnt >= 0)) return;
+  if (fracBad(p, cnt)){ S.msg = {kind:"bad", text:`${p.name}: ${FRAC_MSG}`}; render(true); return false; }
   if (isStaff() && !can("azalt")){ const cur = pCur(p); if (cur!=null && cnt < cur){ staffTry("Stoğu azaltmayı denedi"); S.msg = {kind:"bad", text:"Stoğu azaltmayı sadece dükkân sahibi yapar. Sayım yanlışsa dükkân sahibine söyle."}; render(); return; } }
   await posMarkStart();
   await store.addEvent({id:newId(), type:"sayim", productId:p.id, qty:cnt, was:pCur(p), date:nowIso()});
@@ -4990,6 +4994,7 @@ async function posSubmit(id, form){
     if (S.tanBack){ S.tanBack = false; S.posView = "sat"; render(); posFocus(); } else { render(); setTimeout(()=>document.getElementById("tan-scan")?.focus(),0); } return true; }
   if (id==="tanbform"){ const p = S.products.find(x=>x.id===v("tb-p")); if (!p){ S.msg = {kind:"bad", text:"Bağlanacak ürünü seç."}; render(true); return true; }
     const koli = document.getElementById("tb-koli")?.checked, kq = Math.max(1, Math.round(pnum(v("tb-kq"))) || Number(p.caseSize) || 1), cnt = pnum(v("tb-cnt"));
+    if (cnt > 0 && fracBad(p, cnt)){ S.msg = {kind:"bad", text:FRAC_MSG}; render(true); return true; }
     const code = S.tan.code, own = barcodeOwner(code, p.id); if (own){ S.msg = {kind:"bad", text:`Bu barkod zaten ${own.name} ürününde kayıtlı.`}; render(true); return true; }
     const bcs = (p.barcodes||[]).filter(b=>b.c!==code).concat([{c:code, q: koli ? kq : 1}]);
     await store.saveProduct({...p, barcodes: bcs, ...(koli && !(Number(p.caseSize)>1) ? {caseSize:kq} : {})});
@@ -5760,6 +5765,7 @@ window.addEventListener("pagehide", ()=>{ for (const id of Object.keys(S.pPend))
 // Aynı isimde ürün varsa: yeni ürün açmak yerine onun üstüne ekle
 async function pAddTo(id, qty, o){
   const p = S.products.find(x=>x.id===id); if (!p) return null;
+  if (fracBad(p, qty)) return `${p.name}: ${FRAC_MSG}`;
   o = o || {}; const before = pCur(p), add = qty > 0 ? qty : 0;
   const codes = (o.codes||[]).filter(c=>!(p.barcodes||[]).some(b=>b.c===c) && !barcodeOwner(c, p.id));
   const sale = o.sale > 0 ? r2(o.sale) : null, buy = o.buy > 0 ? r2(o.buy) : null;
@@ -5814,6 +5820,7 @@ async function pAct(a, t){
       const h = t.closest(".pdup"); if (h && !h.querySelector(".pq")) h.querySelector("div").insertAdjacentHTML("beforeend", `<p class="pq">Kaç ${kol ? "tane geldi? 4. adımdaki" : "tane geldi? \"Şu an rafta\" kutusundaki"} sayıya yaz, sonra tekrar bas.</p>`); return true; }
     const codes = g(kol ? "ku-bc" : "f-bc").split(/[,;\s]+/).map(c=>c.replace(/[^\dA-Za-z\-]/g,"")).filter(Boolean);
     const m = await pAddTo(id, q, {codes, sale: pnum(g(kol ? "ku-sale" : "f-sale")), buy: pnum(g(kol ? "ku-buy" : "f-buy"))});
+    if (String(m).includes(FRAC_MSG)){ S.kErr = m; S.msg = kol ? null : {kind:"bad", text:m}; render(true); return true; }
     S.msg = {kind:"ok", text:m}; S.pAddErr = false;
     if (kol){ S.kEdit = null; S.kBc = null; S.tab = S.kBack==="satis" ? "satis" : "k-stok"; } else { S.editId = null; S.rcFor = null; }
     render(); window.scrollTo(0,0); return true; }
@@ -6069,7 +6076,7 @@ function kUrun(){
       <label for="ku-cnt">Rafta Kaç ${v.byWeight ? "Kilo" : "Tane"} Var?</label>
       <div class="kustepper"><button type="button" data-act="kStep" data-d="-1" aria-label="Bir azalt">${ic("minus",26)}</button><input id="ku-cnt" inputmode="decimal" placeholder="${p ? "Aynı" : "0"}"><button type="button" data-act="kStep" data-d="1" aria-label="Bir artır">${ic("plus",26)}</button></div>
       ${p ? `<p class="small muted">Aynıysa boş bırak.</p>` : ""}
-      <label class="kuswitch"><input id="ku-w" type="checkbox" ${v.byWeight?"checked":""}><span></span> Tartıyla satılıyor (kilo)</label></div></section>
+      <label class="kuswitch"><input id="ku-w" type="checkbox" ${v.byWeight || v.unit==="kg" ?"checked":""}><span></span> Tartıyla satılıyor (kilo)</label></div></section>
     ${S.kErr ? `<p class="notice bad">${esc(S.kErr)}</p>` : ""}
     ${p ? `<button type="button" class="big kumal" data-act="supMal" data-p="${p.id}" data-back="k-stok">${ic("truck",20)} Bu Üründen Mal Geldi</button>` : ""}
     ${p ? `<button type="button" class="link dangerLink kdel" data-act="kDel" data-id="${p.id}">${S.kDelC===p.id ? "Emin misin? Ürünü sil" : "Ürünü sil"}</button>` : ""}
@@ -6114,7 +6121,7 @@ async function kSave(next){
   let pid = old?.id;
   if (old){
     await store.saveProduct({...old, name, salePrice:r2(sale), salePriceAt: Number(old.salePrice)===r2(sale) ? (old.salePriceAt||null) : nowIso(), buyPrice: buy>0 ? r2(buy) : null, barcodes:bcs, byWeight:w, unit: w ? "kg" : (old.unit==="kg" ? "tane" : old.unit)});
-    if (cnt >= 0) await addCount(S.products.find(x=>x.id===old.id), cnt);
+    if (cnt >= 0 && await addCount(S.products.find(x=>x.id===old.id), cnt) === false) return;
   } else {
     pid = newId();
     await store.saveProduct({id:pid, createdAt:nowIso(), aliases:[], outSince:null, recipe:null, name, supplier:"", initialWeekly:0, intervalDays:7, caseSize:1,
