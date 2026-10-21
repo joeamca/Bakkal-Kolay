@@ -318,7 +318,7 @@ html,body{overscroll-behavior-y:contain}
   .givenbox .chip{flex:1}
 }
 body.kb nav.tabs{display:none}
-nav.tabs{will-change:transform}
+nav.tabs,.paybar{will-change:transform;transform:translateZ(0);backface-visibility:hidden}
 .nlist{display:flex;flex-direction:column;gap:4px}
 .nrow{display:grid!important;grid-template-columns:auto 1fr auto;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
 .nrow:first-child{border-top:0}
@@ -5293,28 +5293,31 @@ document.addEventListener("change", ev=>{ if (ev.target.id==="rp-from" || ev.tar
 })();
 
 
-/* ---------- Alt menü: görünen ekranın dibine yapışsın ---------- */
+/* ---------- Alt menü ve ödeme çubuğu: ekranın dibinde sabit dursun ---------- */
+// Kaydırırken hiç oynatılmaz (adres çubuğu gizlenip açılırken bile). Sadece klavye kapandıktan hemen sonra iOS'un
+// sabit öğeleri eski yerde bırakma hatası için kısa süre düzeltme yapılır; menü ve ödeme çubuğu birlikte taşınır.
 (function(){
   const vv = window.visualViewport;
   const typing = t => !!(t && t.matches && t.matches("input:not([type=checkbox]):not([type=radio]):not([type=button]):not([type=submit]):not([type=file]),textarea,select"));
-  let raf = 0;
+  let raf = 0, blurAt = 0;
+  const bars = () => [document.querySelector("nav.tabs"), document.querySelector(".paybar")].filter(Boolean);
   function fix(){
-    raf = 0; const n = document.querySelector("nav.tabs"); if (!n || !vv) return;
+    raf = 0; if (!vv) return;
     // Ekran klavyesi açık: görünen alan belirgin küçülür -> menüyü gizle (alan açılsın, klavyenin üstünde uçmasın)
     const kb = typing(document.activeElement) && vv.height < window.innerHeight * 0.8;
     document.body.classList.toggle("kb", kb);
-    // iOS klavye kapandıktan sonra sabit öğeleri eski yerde bırakabiliyor: menüyü görünen alanın dibine taşı
     const off = Math.round(vv.offsetTop + vv.height - window.innerHeight);
-    const sy = window.scrollY || 0;
-    n.style.transform = (!kb && off > 1 && sy >= 0 && vv.offsetTop >= 0 && !document.getElementById("ptr")?.classList.contains("go")) ? "translateY(" + off + "px)" : "";
+    const justClosed = Date.now() - blurAt < 1500;
+    const tr = (!kb && justClosed && off > 1 && vv.offsetTop >= 0) ? "translateY(" + off + "px)" : "";
+    for (const b of bars()) if (b.style.transform !== tr) b.style.transform = tr;
   }
   const later = () => { if (!raf) raf = requestAnimationFrame(fix); };
   window.navFix = fix;
-  if (vv){ vv.addEventListener("resize", later); vv.addEventListener("scroll", later); }
-  window.addEventListener("scroll", later, {passive:true});
+  if (vv) vv.addEventListener("resize", later);
+  window.addEventListener("scroll", () => { if (bars().some(b=>b.style.transform)) later(); }, {passive:true});   // kaydırınca eski düzeltme varsa kaldır
   window.addEventListener("orientationchange", () => setTimeout(fix, 350));
   document.addEventListener("focusin", later);
-  document.addEventListener("focusout", () => { setTimeout(fix, 80); setTimeout(fix, 400); });
+  document.addEventListener("focusout", () => { blurAt = Date.now(); setTimeout(fix, 80); setTimeout(fix, 400); setTimeout(fix, 1600); });
 })();
 
 /* ---------- Bildirimler (telefon, tablet, bilgisayar): web push ---------- */
@@ -5968,7 +5971,9 @@ GUIDE.tedarik = {t:"Tedarikçiler: kime ne borcun var", s:[
 /* ================= Bakkal Kolay: sade arayüz, aynı veri ve aynı hesaplar ================= */
 window.KOLAY = true;
 // alttaki menünün yüksekliği: sabit ödeme çubuğu menünün hemen üstünde dursun
-(function(){ const set = () => { const n = document.querySelector("nav.tabs"), h = n && getComputedStyle(n).display !== "none" ? n.getBoundingClientRect().height : 0; document.documentElement.style.setProperty("--navh", Math.round(h) + "px"); };
+(function(){ const set = () => { const n = document.querySelector("nav.tabs"), h = n && getComputedStyle(n).display !== "none" ? n.getBoundingClientRect().height : 0;
+    const w = document.querySelector(".wrap"), z = w ? (parseFloat(getComputedStyle(w).zoom) || 1) : 1;   // büyük yazıda ödeme çubuğu büyütülmüş alanın içinde: boşluk kalmasın
+    document.documentElement.style.setProperty("--navh", (h / z).toFixed(1) + "px"); };
   try{ new ResizeObserver(set).observe(document.body); }catch(_){ } window.addEventListener("resize", set); setTimeout(set, 300); })();
 const K_MAP = {ana:"k-ana", menu:"k-daha", stok:"k-stok", kar:"k-kar"};
 const K_MORE = ["hareket","duyuru","rapor","veresiye","ayarlar","plan","maliyet","fire","siparis","fatura"];
