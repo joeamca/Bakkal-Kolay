@@ -21,13 +21,11 @@ rep(',["sor","Asistan","spark"]]', ']')
 rep('const voiceBox = (m, ph) => isStaff() ? "" : `', 'const voiceBox = (m, ph) => "" && `')
 rep('${isStaff() ? "" : `<button type="button" class="camBtn" data-act="vOpen" aria-label="Sesle söyle" title="Sesle söyle">🎤</button>`}', '')
 rep(', sor:kSor,', ',')
-# 4) Hesap gerektiren kartlar çıkar: ortak defter, bildirimler
+# 4) Hesap gerektiren kart çıkar: ortak defter
 i = s.index('  ${S.mode==="cloud" ? "" : `<section class="card stack"><h2>Dükkânda Birden Fazla Kişi</h2>')
 j = s.index('  </section>`}\n', i) + len('  </section>`}\n')
 s = s[:i] + s[j:]
-rep('  if (S.mode!=="cloud") return `<section class="card stack"><h2>${ic("bell",20)} Bildirimler</h2><p class="small muted">Bildirimler için hesabınla giriş yapman gerekiyor.</p></section>`;', '  return "";')
-# "Diğer İşler"deki Bildirimler kutusu hesap ister → çıkar; Ayarlar'ın altyazısı da şifre demesin
-rep('    ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}\n', '')
+# Bildirimler internetsiz de çalışır (telefonun kendisi gösterir); Ayarlar'ın altyazısı şifre demesin
 rep('"Ayarlar", "Şifre, yedek")', '"Ayarlar", "Yedek, görünüm")')
 # Aynı adreste (joeamca.github.io) çalışan Kolay/Defteri ile tarayıcı belleği karışmasın: bütün anahtarlar bdo- ile başlar
 s = s.replace('"bd-', '"bdo-')

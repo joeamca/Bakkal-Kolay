@@ -1,6 +1,6 @@
 // Bakkal Kolay Çevrimdışı servis çalışanı: uygulama ilk açılışta (internetle) telefona indirilir; sonra tamamen internetsiz çalışır.
 // Önce telefondaki kopya açılır; internet varsa arkada yenisi indirilir ve bir sonraki açılışta kullanılır.
-const CACHE = "cevrimdisi-v13";
+const CACHE = "cevrimdisi-v14";
 const XLSX = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";   // Excel yedeği için (SheetJS 0.20.3); kurulumda bir kez indirilir
 const XLSX_OLD = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";   // yedek: sadece Excel'e yazmak için
 const CORE = ["./", "manifest.webmanifest", "kamera.js", "duyuru.js", "icons/kolay-192.png", "icons/kolay-512.png", "icons/kolay-180.png", "icons/kolay-mask-512.png"];
@@ -29,4 +29,13 @@ self.addEventListener("fetch", e => {
     if (hit) { net.catch(() => {}); return hit; }
     return net.catch(() => new Response("<!doctype html><meta charset=utf-8><meta name=viewport content='width=device-width'><body style='font:20px system-ui;padding:24px'><h2>İlk açılış için internet gerekiyor</h2><p>Uygulamayı bir kez internetle açınca, sonra internetsiz çalışır.</p>", { headers: { "content-type": "text/html; charset=utf-8" } }));
   })());
+});
+// Telefonun kendi gösterdiği bildirime (stok, kasa, tedarikçi) basınca uygulama açılır
+self.addEventListener("notificationclick", e => {
+  e.notification.close();
+  const url = (e.notification.data && e.notification.data.url) || self.registration.scope;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(ws => {
+    for (const w of ws) if (w.url.split(/[?#]/)[0] === url.split(/[?#]/)[0] && "focus" in w) return w.focus();
+    return self.clients.openWindow(url);
+  }));
 });

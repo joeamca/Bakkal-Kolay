@@ -3048,7 +3048,7 @@ async function boot(){
     S.why = "";
     if (canLocal()){ const L = readLocal(); S.products = L ? L.products : []; S.events = L ? L.events : []; S.suppliers = L?.suppliers || {}; S.customers = L?.customers || {}; S.sales = L?.sales || []; S.cash = L?.cash || []; salesTouch(); if (L?.settings) S.settings = L.settings; setStore(localStore()); S.mode = "local"; try{ navigator.storage?.persist?.(); }catch(_){} }
     else { S.products = []; S.events = []; setStore(memoryStore()); S.mode = "memory"; }
-    render(); return;
+    render(); setTimeout(()=>{ try{ nDaily(); }catch(_){} }, 2500); return;
   }
   S.uid = uid;
   if (cached && cached.uid && cached.uid!==uid){ S.products = []; S.events = []; S.suppliers = {}; S.customers = {}; }
@@ -5399,8 +5399,48 @@ async function nTest(){
 }
 // Arka planda gönder: hata kasayı durdurmasın
 function nSend(type, title, body, tag, noEx){
+  if (S.mode!=="cloud"){ nLocal(type, title, body, tag); return; }
   try{ if (!SB || S.mode!=="cloud" || !S.cloud.shop || !navigator.onLine) return;
     SB.functions.invoke("bildir", {body:{type, title, body, tag, shop_id: S.cloud.shop.id, exclude: noEx ? undefined : N.endpoint, app: window.KOLAY ? "kolay" : "tam"}}).catch(()=>{}); }catch(_){}
+}
+/* ---------- Hesapsız / çevrimdışı: sunucu yok, bildirim bu telefonun kendisinde gösterilir ---------- */
+const NL_KEY = "bdo-yerel-bildirim", NL_TYPES = ["stok","bitti","kasa","cikis","veresiye","tedarik"];
+const nLocalOk = () => "Notification" in window && "serviceWorker" in navigator;
+function nLocalOn(){ try{ return nLocalOk() && Notification.permission==="granted" && localStorage.getItem(NL_KEY)==="1"; }catch(_){ return false; } }
+async function nLocal(type, title, body, tag, force){
+  try{
+    if (!(force ? (nLocalOk() && Notification.permission==="granted") : nLocalOn()) || (type && !NL_TYPES.includes(type) && type!=="deneme")) return false;
+    const reg = await navigator.serviceWorker.getRegistration().catch(()=>null);
+    const base = (reg && reg.scope) || location.href.split(/[?#]/)[0].replace(/[^/]*$/, "");
+    const opt = {body: body||"", icon: base + "icons/kolay-192.png", badge: base + "icons/kolay-192.png", tag: tag || undefined, renotify: !!tag, lang: "tr", vibrate: [80,40,80], data: {url: base}};
+    if (reg && reg.showNotification) await reg.showNotification(title, opt); else new Notification(title, opt);
+    return true;
+  }catch(_){ return false; }
+}
+// Tedarikçi ödeme zamanı: sunucu yokken uygulama açılınca (ve telefona her dönülünce) bakılır; aynı tedarikçi için haftada bir
+function nDaily(){
+  if (S.mode==="cloud" || !nLocalOn()) return;
+  for (const sp of supList()){ const st = supStats(sp.id); if (!st.due) continue;
+    const k = "bdo-n-ted-" + sp.id; let last = 0; try{ last = Number(localStorage.getItem(k)) || 0; }catch(_){}
+    if (Date.now() - last < 7*DAY - 3600000) continue;
+    try{ localStorage.setItem(k, String(Date.now())); }catch(_){}
+    nLocal("tedarik", "Tedarikçiye ödeme zamanı", `${sp.name}: ${TLx(st.bal)} borcun ${Math.floor(st.ageDays)} gündür bekliyor (vade ${st.vade} gün).`, "ted-" + sp.id); }
+}
+document.addEventListener("visibilitychange", ()=>{ if (document.visibilityState==="visible") setTimeout(()=>{ try{ nDaily(); }catch(_){} }, 1500); });
+function nLocalSection(){
+  let h = `<section class="card stack nsec" id="bildirim"><div class="row between"><h2>${ic("bell",20)} Bildirimler</h2>${nLocalOn() ? `<span class="pill ok">Açık</span>` : ""}</div>`;
+  if (!nLocalOk()) h += `<p class="small muted">Bu tarayıcı bildirim desteklemiyor. Telefonda Chrome ya da Safari (ana ekrana eklenmiş) kullan.</p>`;
+  else if (Notification.permission==="denied") h += `<p class="notice warn small">Bildirim izni kapalı. Tarayıcının site ayarlarından bu sayfa için bildirimlere izin verip tekrar dene.</p>`;
+  else if (!nLocalOn()){
+    h += `<p class="small">Stok azalınca ya da bitince, gün kapanınca, kasadan büyük para çıkınca, veresiye sınırı aşılınca ve tedarikçiye ödeme zamanı gelince bu telefona haber gelir. İnternet gerekmez.</p>`;
+    if (nIOS() && !nStandalone()) h += `<p class="notice warn small">iPhone ve iPad'de önce uygulamayı ana ekrana ekle: Safari'de <b>Paylaş</b> düğmesine bas, <b>Ana Ekrana Ekle</b>'yi seç. Sonra ana ekrandaki simgeden açıp buraya gel.</p>`;
+    h += `<button class="primary big" data-act="nLocOn">${ic("bell",18)} Bildirimleri Aç</button>`;
+  } else h += `<p class="small">Stok, kasa, veresiye ve tedarikçi için bu telefona bildirim gelir.</p>
+      <p class="small muted">İnternetsiz sürümde haber veren sunucu yok: bildirimler sen bir işlem yapınca gelir. Tedarikçi ödeme hatırlatması uygulamayı açınca gelir.</p>
+      <div class="row"><button data-act="nLocTest">Deneme Gönder</button><button class="link" data-act="nLocOff">Bu cihazda kapat</button></div>`;
+  if (N.err) h += `<p class="notice bad small">${esc(N.err)}</p>`;
+  if (N.ok) h += `<p class="notice ok small">${esc(N.ok)}</p>`;
+  return h + `</section>`;
 }
 // Gün kapanışında günün raporu (pazarsa haftanın, ayın son günüyse ayın raporu da) bildirim olarak gider.
 // Aynı gün ikinci kapanışta tekrar gönderilmez. Kapanış yapmayan dükkânlara sunucu 23:30'da yedek olarak gönderir.
@@ -5525,7 +5565,7 @@ document.addEventListener("submit", async ev=>{
 });
 
 function nSection(){
-  return "";
+  if (S.mode!=="cloud") return nLocalSection();
   if (N.state==="?"){ nRefresh().then(()=>render(true)); }
   const on = N.state==="acik", types = N.types || N_TYPES.map(x=>x[0]);
   let h = `<section class="card stack nsec" id="bildirim"><div class="row between"><h2>${ic("bell",20)} Bildirimler</h2>${on ? `<span class="pill ok">Açık</span>` : ""}</div>`;
@@ -5545,6 +5585,16 @@ function nSection(){
 }
 async function nAct(a){
   if (a==="nOn"){ await nEnable(); return true; }
+  if (a==="nLocOn"){ N.err = null; N.ok = null;
+    if (nIOS() && !nStandalone()){ N.err = "iPhone'da bildirim için önce uygulamayı ana ekrana ekle, sonra ana ekrandaki simgeden aç."; render(true); return true; }
+    let perm = "denied"; try{ perm = await Notification.requestPermission(); }catch(_){}
+    if (perm!=="granted"){ N.err = "Bildirim izni verilmedi. Tarayıcı ayarlarından bu sayfaya izin verip tekrar dene."; render(true); return true; }
+    try{ localStorage.setItem(NL_KEY, "1"); }catch(_){}
+    N.ok = (await nLocal("deneme", "Bildirimler açık", "Bakkal Kolay önemli şeyleri buraya yazacak.", "deneme", true)) ? "Bildirimler açıldı. Bir deneme bildirimi gönderildi." : "Bildirimler açıldı.";
+    render(true); setTimeout(()=>{ try{ nDaily(); }catch(_){} }, 1500); return true; }
+  if (a==="nLocTest"){ N.err = null; N.ok = (await nLocal("deneme", "Bildirimler çalışıyor", "Bakkal Kolay bundan sonra önemli şeyleri buraya yazacak.", "deneme")) ? "Deneme bildirimi gönderildi." : null;
+    if (!N.ok) N.err = "Gönderilemedi. Telefonun bildirim ayarlarında bu uygulamaya izin verildiğinden emin ol."; render(true); return true; }
+  if (a==="nLocOff"){ try{ localStorage.removeItem(NL_KEY); }catch(_){} N.ok = null; N.err = null; render(true); return true; }
   if (a==="nOff"){ await nDisable(); return true; }
   if (a==="nTest"){ await nTest(); return true; }
   if (a==="nGo"){ S.tab = "ayarlar"; S.msg = null; render(); setTimeout(()=>document.getElementById("bildirim")?.scrollIntoView({block:"start"}), 50); return true; }
@@ -6152,6 +6202,7 @@ function kDaha(){
     ${t("kGo", 'data-tab="tedarik"', "c2", ic("truck",28), "Tedarikçiler", (()=>{ const v = supList().reduce((a,x)=>a+Math.max(0,supStats(x.id).bal),0); return v>0.005 ? `Borcum: ${kTL(v)}` : "Borç, mal geldi, ödeme"; })())}
     ${t("kGo", 'data-tab="hareket"', "c4", ic("list",28), "Stok Hareketleri", "Kim ne yaptı")}
     ${t("kGo", 'data-tab="duyuru"', "c6", ic("mega",28), "Duyuru", "Mahalleye haber ver")}
+    ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}
     ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Yedek, görünüm")}
   </div>`;
 }
