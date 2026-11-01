@@ -40,6 +40,8 @@ d2 = re.sub(r',?\s*\{ id: "ozel", ad: "Kendin Anlat"[^\n]*\},?', '', d, count=1)
 assert d2 != d
 open(f"{OUT}/duyuru.js", "w", encoding="utf-8").write(d2)
 shutil.copy(f"{SRC}/kamera.js", f"{OUT}/kamera.js")
+# Rehber aynı dosya: hesap/yapay zekâ konularını kendisi gizler (KolayApp.cloud()/ai() false döner)
+shutil.copy(f"{SRC}/rehber.js", f"{OUT}/rehber.js")
 os.makedirs(f"{OUT}/icons", exist_ok=True)
 for f in ["kolay-180.png", "kolay-192.png", "kolay-512.png", "kolay-mask-512.png"]:
     shutil.copy(f"{SRC}/icons/{f}", f"{OUT}/icons/{f}")

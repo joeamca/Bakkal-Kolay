@@ -1,9 +1,9 @@
 // Bakkal Kolay Çevrimdışı servis çalışanı: uygulama ilk açılışta (internetle) telefona indirilir; sonra tamamen internetsiz çalışır.
 // Önce telefondaki kopya açılır; internet varsa arkada yenisi indirilir ve bir sonraki açılışta kullanılır.
-const CACHE = "cevrimdisi-v14";
+const CACHE = "cevrimdisi-v15";
 const XLSX = "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js";   // Excel yedeği için (SheetJS 0.20.3); kurulumda bir kez indirilir
 const XLSX_OLD = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";   // yedek: sadece Excel'e yazmak için
-const CORE = ["./", "manifest.webmanifest", "kamera.js", "duyuru.js", "icons/kolay-192.png", "icons/kolay-512.png", "icons/kolay-180.png", "icons/kolay-mask-512.png"];
+const CORE = ["./", "manifest.webmanifest", "kamera.js", "duyuru.js", "rehber.js", "icons/kolay-192.png", "icons/kolay-512.png", "icons/kolay-180.png", "icons/kolay-mask-512.png"];
 self.addEventListener("install", e => {
   e.waitUntil(caches.open(CACHE).then(async c => {
     await Promise.all(CORE.map(u => c.add(new Request(u, { cache: "reload" })).catch(() => {})));

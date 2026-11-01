@@ -566,7 +566,10 @@ html.kolay body{font-size:19px}
 html.kolay #banner .note{display:none}
 html.kolay nav.tabs{grid-template-columns:repeat(5,1fr)}
 html.kolay nav.tabs button{font-size:14px;min-height:64px}
-html.kolay #guideBtn{display:none}
+html.kolay #guideBtn{background:var(--accent-soft);color:var(--accent);border-color:color-mix(in srgb, var(--accent) 35%, transparent);font-weight:700}
+html.kolay #guideBtn .gl{display:inline}
+html.kolay header.top>.row>#guideBtn{padding-left:12px;padding-right:12px}
+@media (max-width:359px){ html.kolay #guideBtn .gl{display:none} }
 html.kolay nav.tabs button[data-tab="k-ana"]{--tc:var(--accent)} html.kolay nav.tabs button[data-tab="satis"]{--tc:var(--c7)} html.kolay nav.tabs button[data-tab="k-kasa"]{--tc:var(--c1)}
 html.kolay nav.tabs button[data-tab="k-stok"]{--tc:var(--c4)} html.kolay nav.tabs button[data-tab="k-kar"]{--tc:var(--c6)}
 html.kolay nav.tabs button span{font-weight:600}
@@ -1264,9 +1267,10 @@ function renderToast(){
 function offerUndo(text, run){ S.undo = {text, run, until: Date.now()+9000}; renderToast(); clearTimeout(offerUndo.t); offerUndo.t = setTimeout(()=>{ S.undo=null; renderToast(); }, 9100); }
 // Yenilikler kutusu: her güncellemede bir kez gösterilir, "Tamam" denince bu cihazda bir daha çıkmaz.
 // Yeni güncellemede YENI_VER'i değiştir ve YENI_NOT listesini yenile.
-const YENI_VER = "2026-10-18e";
+const YENI_VER = "2026-11-01r";
 const YENI_BASLIK = "Yenilikler";
 const YENI_NOT = [
+  "Yeni Rehber: sağ üstteki Rehber'e bas. Ne yapmak istediğini yaz ya da seç; \"Bana göster\" deyince düğmeleri parlatıp adım adım gösterir, istersen sesli okur. İnternetsiz de çalışır.",
   "Yeni: Daha Fazla > Duyuru. Stok geldi, Cuma mesajı, bayram gibi hazır kartı seç, tek tuşla WhatsApp'a gönder.",
   "Telefonda barkodu kamerayla okutabilirsin: Satış ekranındaki kamera düğmesine bas.",
   "Günü Kapat'a basınca günün raporu telefona gelir.",
@@ -6212,6 +6216,7 @@ function kDaha(){
     ${t("kGo", 'data-tab="duyuru"', "c6", ic("mega",28), "Duyuru", "Mahalleye haber ver")}
     ${t("nGo", "", "c8", ic("bell",28), "Bildirimler", "Telefona haber gelsin")}
     ${t("kGo", 'data-tab="ayarlar"', "c5", ic("gear",28), "Ayarlar", "Şifre, yedek")}
+    ${t("guide", "", "c4", ic("help",28), "Rehber", "Nasıl yapılır, göster")}
   </div>`;
 }
 function kUrun(){
@@ -6448,6 +6453,7 @@ async function dyAct(a, t){
   return false;
 }
 async function kolayAct(a, t, id){
+  if (a==="guide" || a==="guideClose"){ rhOpen(t?.dataset?.topic); return true; }
   if (a.startsWith("dy")) return dyAct(a, t);
   if (a==="kGo"){ if (t.dataset.tab==="tedarik"){ S.supOpen = null; S.supForm = null; S.supEdit = null; } S.tab = t.dataset.tab; S.msg = null; S.kEdit = null; S.vCust = null; S.editId = null; if (t.dataset.f) S.kStokF = t.dataset.f; if (S.tab==="satis") S.posView = "sat"; render(); window.scrollTo(0,0); if (S.tab==="satis") posFocus(); return true; }
   if (a==="kKasa"){ S.tab = "k-kasa"; S.kasaForm = t.dataset.f || null; S.kReason = null; S.kasaErr = null; S.kasaOver = null; S.kapOk = false; S.msg = null; render(); window.scrollTo(0,0); setTimeout(()=>document.getElementById("kf-a")?.focus(),0); return true; }
@@ -6467,6 +6473,29 @@ async function kolayAct(a, t, id){
     offerUndo(`${old.name} silindi.`, ()=>store.saveProduct(old)); S.kEdit = null; S.tab = "k-stok"; S.msg = {kind:"ok", text:`${old.name} silindi.`}; render(); window.scrollTo(0,0); return true; }
   return false;
 }
+// ---- Rehber: etkileşimli yardım (rehber.js; telefona kaydedilir, internetsiz çalışır) ----
+window.KolayApp = {
+  pfx: "bd-",
+  tab: () => S.tab,
+  title: t => titles[t] || "",
+  go: tab => { kolayAct("kGo", {dataset:{tab}}); },
+  newProduct: () => { kolayAct("kEdit", {dataset:{}}); },
+  cloud: () => S.mode==="cloud",
+  staff: () => isStaff(),
+  ai: () => typeof KV.sor==="function" && S.mode==="cloud" && !isStaff(),
+  ready: () => !["login","pickshop","noshop","paused","newpass","setpin","recover"].includes(S.mode) && !S.locked && !S.admin,
+  ask: q => { kolayAct("kGo", {dataset:{tab:"sor"}}); setTimeout(()=>{ if (q && q.trim().length > 1) askRun(q); else document.getElementById("ask-q")?.focus(); }, 60); }
+};
+function rhLoad(cb){
+  if (window.Rehber){ cb && cb(); return; }
+  (rhLoad.q = rhLoad.q || []).push(cb);
+  if (rhLoad.busy) return; rhLoad.busy = true;
+  const s = document.createElement("script"); s.src = "rehber.js"; s.charset = "utf-8";
+  s.onload = () => { rhLoad.busy = false; const q = rhLoad.q; rhLoad.q = []; q.forEach(f=>{ try{ f && f(); }catch(e){ console.warn("rehber", e); } }); };
+  s.onerror = () => { rhLoad.busy = false; rhLoad.q = []; s.remove(); if (rhLoad.ask){ S.msg = {kind:"bad", text:"Rehber açılamadı. Uygulamayı bir kez internetle açınca internetsiz de açılır."}; render(); } };
+  document.head.appendChild(s);
+}
+function rhOpen(topic){ rhLoad.ask = true; rhLoad(()=>Rehber.open(topic)); }
 const KV = {"k-ana":kAna, "k-kasa":kKasa, "k-stok":kStok, "k-kar":kKar, "k-daha":kDaha, "k-urun":kUrun, satis:kPos, duyuru:kDuyuru, sor:kSor, hareket:viewHareket};
 document.addEventListener("submit", ev=>{ if (ev.target.id==="kuform"){ ev.preventDefault(); kSave(ev.submitter?.dataset?.k==="next"); } });
 document.addEventListener("input", ev=>{ const id = ev.target.id; if (id==="ku-sale" || id==="ku-buy"){ const k = document.getElementById("ku-kar"); if (k) k.innerHTML = kKarTxt(document.getElementById("ku-sale").value, document.getElementById("ku-buy").value); } else if (id==="ku-bc") kBcCheck(); });
@@ -6478,9 +6507,10 @@ document.documentElement.classList.add("kolay");
   const T = [["k-ana","Ana Sayfa","home"],["satis","Satış","scan"],["k-kasa","Kasa","cash"],["k-stok","Stok","box"],["k-kar","Kâr","chart"],["sor","Asistan","spark"]];
   n.innerHTML = T.map(([t,l,i])=>`<button data-tab="${t}">${ic(i,26)}<span>${l}</span></button>`).join(""); })();
 
-try{ if (!localStorage.getItem("bd-rehber")){ S.guide=true; S.tab="urunler"; localStorage.setItem("bd-rehber","1"); } }catch(_){}
 try{ document.getElementById("today").textContent = "· " + new Date().toLocaleDateString("tr-TR",{day:"numeric",month:"long",weekday:"long"}); }catch(_){}
 render(); boot();
+// Rehber: arka planda yüklensin (internet giderse de hazır olsun); ilk açılışta kısa tanıtım önersin
+setTimeout(()=>rhLoad(()=>{ let n = 0; const tryRun = () => { if (Rehber.firstRun() === false && ++n < 30) setTimeout(tryRun, 2000); }; tryRun(); }), 1500);
 // Excel kütüphanesini internet varken arka planda indir: sonra internet gitse de yedek alınabilir
 setTimeout(()=>{ if (navigator.onLine!==false) loadXLSX().catch(()=>{}); }, 2500);
 })();
